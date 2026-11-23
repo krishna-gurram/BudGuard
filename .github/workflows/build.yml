@@ -1,0 +1,50 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Unit tests
+        run: gradle :app:testReleaseUnitTest --stacktrace
+
+      - name: Build signed APK
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/BudGuard-v0.1.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BudGuard-v0.1.${{ github.run_number }}
+          path: out/*.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          name: BudGuard v0.1.${{ github.run_number }}
+          prerelease: true
+          files: out/*.apk
+          body: Install on the Fold, then open Diagnostics and tap Copy report.
