@@ -63,13 +63,30 @@ object CompanionLink {
         return runCatching { cdm(context)?.startObservingDevicePresence(address); true }.getOrDefault(false)
     }
 
+    data class Paired(val name: String, val address: String, val connected: Boolean, val kind: String)
+
+    /** The phone's own paired-device list, connected devices first, then audio devices. */
     @SuppressLint("MissingPermission")
-    fun bondedAudioFirst(context: Context): List<Pair<String, String>> {
+    fun bondedAudioFirst(context: Context): List<Paired> {
         val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return emptyList()
         val devices = runCatching { adapter.bondedDevices.toList() }.getOrDefault(emptyList())
         return devices
-            .sortedByDescending { isAudio(it) }
-            .mapNotNull { d -> runCatching { (d.name ?: d.address) to d.address }.getOrNull() }
+            .sortedWith(compareByDescending<BluetoothDevice> { isConnected(it) }.thenByDescending { isAudio(it) })
+            .mapNotNull { d ->
+                runCatching { Paired(d.name ?: d.address, d.address, isConnected(d), kind(d)) }.getOrNull()
+            }
+    }
+
+    // Hidden but long-standing API; falls back to "not connected" if blocked.
+    private fun isConnected(device: BluetoothDevice): Boolean =
+        runCatching { device.javaClass.getMethod("isConnected").invoke(device) as Boolean }.getOrDefault(false)
+
+    @SuppressLint("MissingPermission")
+    private fun kind(device: BluetoothDevice): String = when (runCatching { device.type }.getOrDefault(0)) {
+        BluetoothDevice.DEVICE_TYPE_CLASSIC -> "Classic"
+        BluetoothDevice.DEVICE_TYPE_LE -> "LE Audio"
+        BluetoothDevice.DEVICE_TYPE_DUAL -> "Dual"
+        else -> "Unknown"
     }
 
     @SuppressLint("MissingPermission")

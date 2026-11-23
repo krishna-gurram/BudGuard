@@ -95,7 +95,14 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
             } else if (bonded.isEmpty()) {
                 Text("No paired devices found. Pair the buds in Bluetooth settings first.", fontSize = 14.sp, color = Palette.Quiet)
             } else {
-                bonded.forEach { (name, address) ->
+                Text(
+                    "This is your phone's paired list. Wear the new buds, then pick the one marked Connected now.",
+                    fontSize = 13.sp,
+                    color = Palette.Quiet,
+                )
+                bonded.forEach { device ->
+                    val name = device.name
+                    val address = device.address
                     val selected = address.equals(status.budsAddress, ignoreCase = true)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -115,7 +122,15 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
                             colors = RadioButtonDefaults.colors(selectedColor = Palette.Blue),
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(name, fontSize = 15.sp, color = Palette.Ink, modifier = Modifier.padding(vertical = 12.dp))
+                        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                            Text(name, fontSize = 15.sp, color = Palette.Ink)
+                            Text(
+                                "${device.kind} · ends ${address.takeLast(5)}",
+                                fontSize = 12.sp,
+                                color = Palette.Quiet,
+                            )
+                        }
+                        if (device.connected) Pill("Connected now", Palette.Green, Palette.GreenSoft)
                     }
                 }
             }
