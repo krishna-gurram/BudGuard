@@ -3,7 +3,10 @@ package dev.krishnagurram.budguard.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,43 +14,64 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.krishnagurram.budguard.R
 import dev.krishnagurram.budguard.data.BudEvent
 import dev.krishnagurram.budguard.data.Format
 import dev.krishnagurram.budguard.data.Prefs
+import dev.krishnagurram.budguard.tracking.BudsSound
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
     modifier: Modifier,
     events: List<BudEvent>,
     status: SetupStatus,
+    refresh: Int,
     onSetup: () -> Unit,
     onTimeline: () -> Unit,
+    onFind: () -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val prefs = remember { Prefs(context) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var playing by remember { mutableStateOf(false) }
+    var soundNote by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(30_000)
@@ -58,114 +82,182 @@ fun HomeScreen(
     val latest = events.firstOrNull { it.isLoss || it.isPresence }
     val lastSeen = events.firstOrNull { it.isLoss && it.hasLocation } ?: events.firstOrNull { it.hasLocation }
     val connected = latest?.isPresence == true
-    val prefs = remember { Prefs(context) }
+    val fenceArmed = remember(refresh, events) { prefs.fenceArmed }
+    val leftBehind = fenceArmed && !connected
+    val battery = prefs.lastBattery
 
-    Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        ScreenTitle("BudGuard", status.budsName ?: "No buds picked yet")
-
-        if (!status.coreReady) {
-            Card {
-                Text("Finish setup", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-                Text(
-                    "BudGuard needs Bluetooth, location \"all the time\" and your buds picked before it can watch them.",
-                    fontSize = 14.sp,
-                    color = Palette.Quiet,
-                )
-                Button(onClick = onSetup, colors = blueButton, shape = RoundedCornerShape(50)) { Text("Open setup") }
-            }
+    Box(modifier) {
+        // Map fills the top; the sheet slides over its lower edge.
+        if (lastSeen != null) {
+            BudsMap(
+                lat = lastSeen.lat!!,
+                lng = lastSeen.lng!!,
+                accuracyM = lastSeen.accuracyM,
+                modifier = Modifier.fillMaxWidth().height(440.dp),
+                alert = !connected,
+            )
+        } else {
+            Box(
+                Modifier.fillMaxWidth().height(440.dp).background(Color(0xFFE7EAEE)),
+                contentAlignment = Alignment.Center,
+            ) { Text("The map appears after the first saved spot", color = Palette.Quiet, fontSize = 14.sp) }
         }
 
-        Card {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                when {
-                    latest == null -> IconDot(Icons.Filled.Warning, Palette.Grey, Palette.GreySoft)
-                    connected -> IconDot(Icons.Filled.CheckCircle, Palette.Green, Palette.GreenSoft)
-                    else -> IconDot(Icons.Filled.LocationOn, Palette.Red, Palette.RedSoft)
+        StatusChip(
+            text = when {
+                latest == null -> "Waiting"
+                connected -> "With you"
+                leftBehind -> "Left behind"
+                else -> "Not connected"
+            },
+            color = when {
+                latest == null -> Palette.Grey
+                connected -> Palette.Green
+                else -> Palette.Red
+            },
+            modifier = Modifier.statusBarsPadding().padding(16.dp),
+        )
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(top = 380.dp)
+                .shadow(16.dp, RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                .background(Palette.Bg)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(
+                Modifier.padding(top = 10.dp).width(40.dp).height(5.dp).clip(RoundedCornerShape(3.dp))
+                    .background(Color(0xFFC9C9CF)).align(Alignment.CenterHorizontally),
+            )
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+                Box(
+                    Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Card),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(painterResource(R.drawable.ic_buds), contentDescription = null, tint = Palette.Ink, modifier = Modifier.size(30.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
+                    Text(status.budsName ?: "No buds picked", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
                     Text(
                         when {
-                            latest == null -> "Waiting for the first event"
-                            connected -> "With you"
-                            else -> "Not connected"
+                            latest == null -> "Connect and disconnect once to start"
+                            connected -> "Connected ${Format.ago(now, latest.time)}"
+                            else -> listOfNotNull(
+                                lastSeen?.place ?: lastSeen?.let { coords(it) },
+                                Format.ago(now, latest.time),
+                            ).joinToString(" · ")
                         },
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Palette.Ink,
-                    )
-                    Text(
-                        latest?.let { "${Format.title(it.type, it.battery)} ${Format.ago(now, it.time)}" }
-                            ?: "Connect and disconnect your buds once to test",
                         fontSize = 14.sp,
                         color = Palette.Quiet,
                     )
                 }
             }
-        }
 
-        SectionLabel("Last seen")
-        Card {
-            if (lastSeen == null) {
-                Text("No location saved yet", fontSize = 15.sp, color = Palette.Quiet)
-            } else {
-                Text(
-                    lastSeen.place ?: coords(lastSeen),
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Palette.Ink,
-                )
-                Text(
-                    listOfNotNull(
-                        "${Format.clock(lastSeen.time)} · ${Format.ago(now, lastSeen.time)}",
-                        Format.accuracy(lastSeen.accuracyM),
-                    ).joinToString(" · "),
-                    fontSize = 14.sp,
-                    color = Palette.Quiet,
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { openMap(context, lastSeen) },
-                        colors = blueButton,
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Open in Maps") }
-                    Button(
-                        onClick = onTimeline,
-                        colors = softButton,
-                        shape = RoundedCornerShape(50),
-                        modifier = Modifier.weight(1f),
-                    ) { Text("Timeline") }
+            if (!status.coreReady) {
+                Card {
+                    Text("Finish setup", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
+                    Text("BudGuard can't watch your buds until setup is done.", fontSize = 14.sp, color = Palette.Quiet)
+                    Button(onClick = onSetup, colors = blueButton, shape = RoundedCornerShape(50)) { Text("Open setup") }
                 }
             }
-        }
 
-        SectionLabel("Battery")
-        Card {
-            if (prefs.lastBattery >= 0) {
-                Text("${prefs.lastBattery}%", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
-                Text("Reported ${Format.ago(now, prefs.lastBatteryTime)}", fontSize = 14.sp, color = Palette.Quiet)
-            } else {
-                Text("Not reported by Android yet", fontSize = 15.sp, color = Palette.Ink, fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Wear the buds for a few minutes, then check Diagnostics. This is the battery test from Phase 0.",
-                    fontSize = 13.sp,
-                    color = Palette.Quiet,
-                )
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Palette.Card).padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Row {
+                        Text("Battery", fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.weight(1f))
+                        Text(if (battery >= 0) "$battery%" else "—", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFECECF0))) {
+                        Box(
+                            Modifier.fillMaxWidth((battery.coerceIn(0, 100)) / 100f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                                .background(if (battery in 0..15) Palette.Orange else Palette.Blue),
+                        )
+                    }
+                }
             }
-        }
 
-        Text(
-            "Left-behind alerts, battery snapshots and the Find tab are on. Next: the premium design (v0.5).",
-            fontSize = 12.sp,
-            color = Palette.Quiet,
-            modifier = Modifier.padding(8.dp),
-        )
-        Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Tile("Directions", Icons.Filled.Place, primary = true, enabled = lastSeen != null) {
+                    lastSeen?.let { navigateTo(context, it.lat!!, it.lng!!) }
+                }
+                Tile(if (playing) "Stop sound" else "Play sound", Icons.Filled.PlayArrow, primary = false) {
+                    scope.launch {
+                        if (playing) {
+                            soundNote = BudsSound.stop()
+                            playing = false
+                        } else {
+                            soundNote = "Connecting…"
+                            soundNote = BudsSound.start(context, prefs.budsAddress)
+                            playing = BudsSound.isPlaying
+                        }
+                    }
+                }
+                Tile("Find", Icons.Filled.Search, primary = false, onClick = onFind)
+                Tile("Timeline", Icons.Filled.List, primary = false, onClick = onTimeline)
+            }
+            soundNote?.let { Text(it, fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.padding(horizontal = 8.dp)) }
+
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Palette.Card)
+                    .clickable { openSamsungFind(context) }.padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconDot(Icons.Filled.Search, Palette.Orange, Palette.OrangeSoft, size = 36)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Case tag", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
+                    Text("Closed case or dead buds? Follow the SmartTag2 in Samsung Find", fontSize = 13.sp, color = Palette.Quiet)
+                }
+                Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.Quiet)
+            }
+
+            Spacer(Modifier.height(110.dp))
+        }
+    }
+}
+
+@Composable
+private fun StatusChip(text: String, color: Color, modifier: Modifier) {
+    Row(
+        modifier.shadow(6.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(color)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Color.White))
+        Spacer(Modifier.width(8.dp))
+        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.Tile(
+    label: String,
+    icon: ImageVector,
+    primary: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val bg = if (primary) Palette.Blue else Palette.Card
+    val fg = if (primary) Color.White else Palette.Ink
+    Column(
+        Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(22.dp)).background(if (enabled) bg else Palette.GreySoft)
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = if (primary) Color.White else Palette.Blue)
+        Spacer(Modifier.height(6.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = fg)
     }
 }
 

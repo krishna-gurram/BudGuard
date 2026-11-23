@@ -77,6 +77,13 @@ class EventStore private constructor(context: Context) :
 
     fun observe(): Flow<List<BudEvent>> = version.map { recent() }.flowOn(Dispatchers.IO)
 
+    /** Drops events older than [keepDays] so the log stays small. */
+    fun prune(keepDays: Int) {
+        val cutoff = System.currentTimeMillis() - keepDays * 24L * 60 * 60 * 1000
+        val removed = writableDatabase.delete("events", "time < ?", arrayOf(cutoff.toString()))
+        if (removed > 0) version.value++
+    }
+
     fun clear() {
         writableDatabase.delete("events", null, null)
         version.value++

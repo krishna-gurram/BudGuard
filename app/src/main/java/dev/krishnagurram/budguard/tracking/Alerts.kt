@@ -26,7 +26,7 @@ object Alerts {
         val where = place
             ?: location?.let { String.format(Locale.US, "%.5f, %.5f", it.latitude, it.longitude) }
             ?: "location unavailable"
-        if (moving) {
+        if (moving && dev.krishnagurram.budguard.data.Prefs(context).movingOn) {
             post(
                 context,
                 channel = BudGuardApp.CHANNEL_LEFT,

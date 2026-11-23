@@ -17,8 +17,16 @@ class Prefs(context: Context) {
     private fun setLong(key: String, v: Long) = sp.edit().putLong(key, v).apply()
     private fun bool(key: String) = sp.getBoolean(key, false)
     private fun setBool(key: String, v: Boolean) = sp.edit().putBoolean(key, v).apply()
+    private fun on(key: String) = sp.getBoolean(key, true)
     private fun dbl(key: String) = Double.fromBits(sp.getLong(key, 0L))
     private fun setDbl(key: String, v: Double) = sp.edit().putLong(key, v.toRawBits()).apply()
+
+    // Alert settings (all on by default)
+    var leftBehindOn: Boolean get() = on("left_behind_on"); set(v) = setBool("left_behind_on", v)
+    var batteryOn: Boolean get() = on("battery_on"); set(v) = setBool("battery_on", v)
+    var movingOn: Boolean get() = on("moving_on"); set(v) = setBool("moving_on", v)
+    var chargeOn: Boolean get() = on("charge_on"); set(v) = setBool("charge_on", v)
+    var radiusM: Int get() = int("radius_m", 150); set(v) = setInt("radius_m", v)
 
     // Which buds
     var budsAddress: String? get() = str("buds_address"); set(v) = setStr("buds_address", v)

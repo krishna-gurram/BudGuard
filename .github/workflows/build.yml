@@ -32,19 +32,21 @@ jobs:
 
       - name: Name the APK
         run: |
+          base=$(grep -oP 'versionName = "\K[0-9]+\.[0-9]+' app/build.gradle.kts | head -1)
+          echo "VERSION=$base.${{ github.run_number }}" >> "$GITHUB_ENV"
           mkdir -p out
-          cp app/build/outputs/apk/release/app-release.apk "out/BudGuard-v0.1.${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "out/BudGuard-v$base.${{ github.run_number }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: BudGuard-v0.1.${{ github.run_number }}
+          name: BudGuard-v${{ env.VERSION }}
           path: out/*.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.1.${{ github.run_number }}
-          name: BudGuard v0.1.${{ github.run_number }}
+          tag_name: v${{ env.VERSION }}
+          name: BudGuard v${{ env.VERSION }}
           prerelease: true
           files: out/*.apk
           body: Install on the Fold, then open Diagnostics and tap Copy report.

@@ -30,6 +30,10 @@ object LeftBehind {
     @SuppressLint("MissingPermission")
     fun arm(context: Context, location: Location, place: String?) {
         val prefs = Prefs(context)
+        if (!prefs.leftBehindOn) {
+            prefs.fenceStatus = "Off in Alerts settings"
+            return
+        }
         prefs.fenceLat = location.latitude
         prefs.fenceLng = location.longitude
         prefs.fencePlace = place
@@ -55,7 +59,7 @@ object LeftBehind {
         val remaining = (prefs.fenceExpiresAt - System.currentTimeMillis()).coerceAtLeast(60_000)
         val fence = Geofence.Builder()
             .setRequestId(FENCE_ID)
-            .setCircularRegion(prefs.fenceLat, prefs.fenceLng, RADIUS_M)
+            .setCircularRegion(prefs.fenceLat, prefs.fenceLng, prefs.radiusM.toFloat())
             .setExpirationDuration(remaining)
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
             .setNotificationResponsiveness(30_000)

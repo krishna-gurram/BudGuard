@@ -74,7 +74,7 @@ fun DiagnosticsScreen(
             Text("Open setup")
         }
         TextButton(onClick = { confirmClear = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear timeline") }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(110.dp))
     }
 
     if (confirmClear) {

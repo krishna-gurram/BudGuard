@@ -15,6 +15,7 @@ import dev.krishnagurram.budguard.data.EventSource
 import dev.krishnagurram.budguard.data.EventStore
 import dev.krishnagurram.budguard.data.EventType
 import dev.krishnagurram.budguard.data.Prefs
+import dev.krishnagurram.budguard.widget.LastSeenWidget
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
@@ -55,6 +56,8 @@ object EventRecorder {
             )
         }
         if (moving) store.markMoving(id)
+
+        LastSeenWidget.refresh(context)
 
         when (type) {
             EventType.DISCONNECTED, EventType.DISAPPEARED -> {

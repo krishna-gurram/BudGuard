@@ -66,7 +66,7 @@ class BluetoothReceiver : BroadcastReceiver() {
             prefs.lastBatteryTime = System.currentTimeMillis()
 
             val crossed = Format.crossedThreshold(previous = if (previous < 0) 100 else previous, current = level)
-            if (crossed != null) {
+            if (crossed != null && prefs.batteryOn) {
                 EventRecorder.record(context, EventType.BATTERY, EventSource.BATTERY_BROADCAST, battery = level)
             }
         }

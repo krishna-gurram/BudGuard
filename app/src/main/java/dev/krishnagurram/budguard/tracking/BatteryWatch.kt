@@ -6,7 +6,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import dev.krishnagurram.budguard.data.EventStore
 import dev.krishnagurram.budguard.data.Prefs
+import dev.krishnagurram.budguard.widget.LastSeenWidget
 import java.util.concurrent.TimeUnit
 
 /**
@@ -45,7 +47,10 @@ class BatteryWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
         val now = System.currentTimeMillis()
         val gone = prefs.recordedState == Presence.LOST
-        if (BatteryWatch.shouldNag(gone, prefs.rawSince, prefs.lastBattery, prefs.lastChargeNag, now)) {
+        EventStore.get(applicationContext).prune(keepDays = 90)
+        LastSeenWidget.refresh(applicationContext)
+
+        if (prefs.chargeOn && BatteryWatch.shouldNag(gone, prefs.rawSince, prefs.lastBattery, prefs.lastChargeNag, now)) {
             prefs.lastChargeNag = now
             Alerts.charge(applicationContext, prefs.lastBattery)
         }

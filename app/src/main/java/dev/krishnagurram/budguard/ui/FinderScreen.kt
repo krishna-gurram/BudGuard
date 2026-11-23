@@ -178,7 +178,7 @@ fun FinderScreen(modifier: Modifier) {
             color = Dark.Quiet,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(110.dp))
     }
 }
 
@@ -230,10 +230,4 @@ private fun setTorch(context: Context, on: Boolean) {
         } ?: return
         camera.setTorchMode(id, on)
     }
-}
-
-private fun openSamsungFind(context: Context) {
-    val packages = listOf("com.samsung.android.oneconnect", "com.samsung.android.app.smartthingsfind")
-    val intent = packages.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
-    if (intent != null) runCatching { context.startActivity(intent) }
 }
