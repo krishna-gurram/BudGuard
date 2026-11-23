@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 
 /** On-device event log. Everything stays on the phone. */
 class EventStore private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "budguard.db", null, 2) {
+    SQLiteOpenHelper(context.applicationContext, "budguard.db", null, 3) {
 
     private val version = MutableStateFlow(0)
 
@@ -30,7 +30,8 @@ class EventStore private constructor(context: Context) :
                 accuracy REAL,
                 place TEXT,
                 battery INTEGER,
-                moving INTEGER NOT NULL DEFAULT 0
+                moving INTEGER NOT NULL DEFAULT 0,
+                item TEXT
             )
             """.trimIndent(),
         )
@@ -39,6 +40,7 @@ class EventStore private constructor(context: Context) :
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("ALTER TABLE events ADD COLUMN moving INTEGER NOT NULL DEFAULT 0")
+        if (oldVersion < 3) db.execSQL("ALTER TABLE events ADD COLUMN item TEXT")
     }
 
     fun markMoving(id: Long) {
@@ -46,8 +48,9 @@ class EventStore private constructor(context: Context) :
         version.value++
     }
 
-    fun insert(time: Long, type: EventType, source: EventSource, battery: Int? = null): Long {
+    fun insert(time: Long, type: EventType, source: EventSource, battery: Int? = null, item: String? = null): Long {
         val values = ContentValues().apply {
+            if (item != null) put("item", item)
             put("time", time)
             put("type", type.name)
             put("source", source.name)
@@ -107,6 +110,7 @@ class EventStore private constructor(context: Context) :
             place = if (isNull(placeIdx)) null else getString(placeIdx),
             battery = if (isNull(battIdx)) null else getInt(battIdx),
             moving = getInt(getColumnIndexOrThrow("moving")) == 1,
+            item = getColumnIndexOrThrow("item").let { if (isNull(it)) null else getString(it) },
         )
     }
 

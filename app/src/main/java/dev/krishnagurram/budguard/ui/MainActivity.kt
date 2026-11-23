@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -58,7 +59,7 @@ import dev.krishnagurram.budguard.tracking.CompanionLink
 import dev.krishnagurram.budguard.tracking.Driving
 import dev.krishnagurram.budguard.tracking.LeftBehind
 
-enum class Screen { Buds, Timeline, Find, Alerts, Diagnostics, Setup, TagLab }
+enum class Screen { Buds, Items, ItemDetail, Timeline, Find, Alerts, Diagnostics, Setup, TagLab }
 
 class MainActivity : ComponentActivity() {
 
@@ -69,6 +70,8 @@ class MainActivity : ComponentActivity() {
         Driving.register(this)
         LeftBehind.rearm(this)
         BatteryWatch.schedule(this)
+        dev.krishnagurram.budguard.tracking.TagWatch.schedule(this)
+        dev.krishnagurram.budguard.tracking.TagWatch.checkSoon(this, "app opened")
         setContent { BudGuardTheme { AppRoot() } }
     }
 }
@@ -87,6 +90,7 @@ private fun AppRoot() {
     val status = remember(refresh) { SetupStatus.read(context) }
 
     var screen by rememberSaveable { mutableStateOf(if (status.coreReady) Screen.Buds else Screen.Setup) }
+    var openItem by rememberSaveable { mutableStateOf("") }
 
     // While the app is open, also listen for battery reports.
     DisposableEffect(Unit) {
@@ -118,6 +122,16 @@ private fun AppRoot() {
                 onTimeline = { screen = Screen.Timeline },
                 onFind = { screen = Screen.Find },
             )
+            Screen.Items -> ItemsScreen(
+                modifier,
+                events,
+                onBuds = { screen = Screen.Buds },
+                onOpen = { id ->
+                    openItem = id
+                    screen = Screen.ItemDetail
+                },
+            )
+            Screen.ItemDetail -> ItemDetailScreen(modifier, openItem, onBack = { screen = Screen.Items })
             Screen.Timeline -> TimelineScreen(modifier.statusBarsPadding(), events)
             Screen.Find -> FinderScreen(modifier.statusBarsPadding())
             Screen.Alerts -> AlertsScreen(
@@ -169,6 +183,7 @@ private fun PillNav(current: Screen, dark: Boolean, onSelect: (Screen) -> Unit, 
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
         PillItem("Buds", Icons.Filled.Home, current == Screen.Buds, dark) { onSelect(Screen.Buds) }
+        PillItem("Items", Icons.Filled.Place, current == Screen.Items || current == Screen.ItemDetail, dark) { onSelect(Screen.Items) }
         PillItem("Timeline", Icons.Filled.List, current == Screen.Timeline, dark) { onSelect(Screen.Timeline) }
         PillItem("Find", Icons.Filled.Search, current == Screen.Find, dark) { onSelect(Screen.Find) }
         PillItem(

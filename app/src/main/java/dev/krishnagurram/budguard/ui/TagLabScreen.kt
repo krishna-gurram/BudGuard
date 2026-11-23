@@ -320,7 +320,7 @@ private fun statusLine(st: SamsungFind.Status?, now: Long): String {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun SamsungSignIn(onCancel: () -> Unit, onDone: () -> Unit) {
+fun SamsungSignIn(onCancel: () -> Unit, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var checking by remember { mutableStateOf(false) }
     BackHandler(onBack = onCancel)

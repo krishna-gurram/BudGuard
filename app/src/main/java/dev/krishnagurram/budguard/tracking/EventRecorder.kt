@@ -69,11 +69,12 @@ object EventRecorder {
                 Alerts.clearLoss(context)
             }
             EventType.BATTERY -> Alerts.battery(context, battery, place)
+            EventType.TAG_LEFT, EventType.TAG_BACK, EventType.TAG_BATTERY -> Unit
         }
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun currentLocation(context: Context): Location? {
+    suspend fun currentLocation(context: Context): Location? {
         if (!granted(context, Manifest.permission.ACCESS_FINE_LOCATION) &&
             !granted(context, Manifest.permission.ACCESS_COARSE_LOCATION)
         ) return null
@@ -91,7 +92,7 @@ object EventRecorder {
         return runCatching { client.lastLocation.await() }.getOrNull()
     }
 
-    private suspend fun placeName(context: Context, location: Location): String? {
+    suspend fun placeName(context: Context, location: Location): String? {
         if (!Geocoder.isPresent()) return null
         return withTimeoutOrNull(GEOCODE_TIMEOUT_MS) {
             suspendCancellableCoroutine { cont ->

@@ -43,7 +43,7 @@ import dev.krishnagurram.budguard.data.Format
 import dev.krishnagurram.budguard.tracking.Alerts
 import dev.krishnagurram.budguard.tracking.LeftBehind
 
-private enum class Filter(val label: String) { All("All"), Away("Left behind"), Battery("Battery"), Moving("Moving") }
+private enum class Filter(val label: String) { All("All"), Away("Left behind"), Items("Tags"), Battery("Battery"), Moving("Moving") }
 
 @Composable
 fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
@@ -55,8 +55,9 @@ fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
     val shown = events.filter {
         when (filter) {
             Filter.All -> true
-            Filter.Away -> it.isLoss
-            Filter.Battery -> it.type == EventType.BATTERY
+            Filter.Away -> it.isLoss || it.type == EventType.TAG_LEFT
+            Filter.Items -> it.item != null
+            Filter.Battery -> it.type == EventType.BATTERY || it.type == EventType.TAG_BATTERY
             Filter.Moving -> it.moving
         }
     }
@@ -178,6 +179,9 @@ private fun EventRow(e: BudEvent, last: Boolean, onClick: () -> Unit) {
         EventType.APPEARED -> Triple(Icons.Filled.Add, Palette.Blue, Palette.BlueSoft)
         EventType.DISAPPEARED -> Triple(Icons.Filled.Clear, Palette.Grey, Palette.GreySoft)
         EventType.BATTERY -> Triple(Icons.Filled.Warning, Palette.Orange, Palette.OrangeSoft)
+        EventType.TAG_LEFT -> Triple(Icons.Filled.LocationOn, Palette.Red, Palette.RedSoft)
+        EventType.TAG_BACK -> Triple(Icons.Filled.CheckCircle, Palette.Green, Palette.GreenSoft)
+        EventType.TAG_BATTERY -> Triple(Icons.Filled.Warning, Palette.Orange, Palette.OrangeSoft)
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -187,7 +191,7 @@ private fun EventRow(e: BudEvent, last: Boolean, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(Format.title(e.type, e.battery), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink, modifier = Modifier.weight(1f))
+                Text(listOfNotNull(e.item, Format.title(e.type, e.battery)).joinToString(": "), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink, modifier = Modifier.weight(1f))
                 Text(Format.clock(e.time), fontSize = 13.sp, color = Palette.Quiet)
             }
             Text(

@@ -50,6 +50,8 @@
         <receiver android:name=".tracking.FenceReceiver" android:exported="false" />
         <receiver android:name=".tracking.ActionReceiver" android:exported="false" />
         <receiver android:name=".tracking.DrivingReceiver" android:exported="false" />
+        <receiver android:name=".tracking.MoveFenceReceiver" android:exported="false" />
+        <receiver android:name=".tracking.TagActionReceiver" android:exported="false" />
         <receiver android:name=".tracking.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

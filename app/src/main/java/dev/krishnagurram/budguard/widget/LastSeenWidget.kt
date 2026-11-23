@@ -19,6 +19,16 @@ class LastSeenWidget : AppWidgetProvider() {
 
     companion object {
 
+        private fun tagsLine(context: Context): String =
+            dev.krishnagurram.budguard.data.ItemStore.items(context).joinToString(" · ") { t ->
+                when (t.state) {
+                    dev.krishnagurram.budguard.data.TagState.WITH_YOU -> "${t.label}: with you"
+                    dev.krishnagurram.budguard.data.TagState.LEFT_SAFE -> "${t.label}: at ${t.safePlace ?: "safe place"}"
+                    dev.krishnagurram.budguard.data.TagState.LEFT_BEHIND -> "${t.label}: left at ${t.place ?: "last spot"}"
+                    dev.krishnagurram.budguard.data.TagState.UNKNOWN -> "${t.label}: checking"
+                }
+            }
+
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, LastSeenWidget::class.java))
@@ -50,6 +60,7 @@ class LastSeenWidget : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_last_seen).apply {
                 setTextViewText(R.id.widget_status, status)
                 setTextViewText(R.id.widget_place, place)
+                setTextViewText(R.id.widget_tags, tagsLine(context))
                 setOnClickPendingIntent(R.id.widget_root, open)
             }
             manager.updateAppWidget(ids, views)

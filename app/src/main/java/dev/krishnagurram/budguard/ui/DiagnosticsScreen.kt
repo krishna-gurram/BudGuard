@@ -165,6 +165,15 @@ private fun buildSections(context: Context, events: List<BudEvent>, s: SetupStat
             ),
             Line(null, "Buds state", "${prefs.recordedState ?: "unknown"} (raw ${prefs.rawState ?: "none"})"),
         ),
+        "Tags (v2.0)" to listOf(
+            Line(if (dev.krishnagurram.budguard.tracking.SamsungFind.isSignedIn()) true else null, "Samsung sign-in",
+                if (dev.krishnagurram.budguard.tracking.SamsungFind.isSignedIn()) "Signed in" else "Not signed in (Items tab)"),
+            Line(null, "Tags tracked", dev.krishnagurram.budguard.data.ItemStore.items(context).joinToString { "${it.label}: ${it.state.name.lowercase()}" }.ifBlank { "none" }),
+            Line(null, "Last tag check", if (prefs.tagCheckTime > 0) "${Format.ago(now, prefs.tagCheckTime)} · ${prefs.tagCheckReason ?: "?"}" else "never"),
+            Line(null, "Result", prefs.tagCheckResult ?: "—"),
+            Line(if (prefs.moveFenceStatus?.startsWith("Armed") == true) true else null, "Movement fence", prefs.moveFenceStatus ?: "not armed yet"),
+            Line(null, "Safe places", dev.krishnagurram.budguard.data.ItemStore.safePlaces(context).joinToString { it.name }.ifBlank { "none" }),
+        ),
         "Setup" to listOf(
             Line(s.budsAddress != null, "Buds picked", s.budsName ?: "None"),
             Line(s.bluetooth, "Bluetooth permission", if (s.bluetooth) "Allowed" else "Missing"),

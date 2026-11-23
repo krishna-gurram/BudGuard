@@ -17,7 +17,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
@@ -25,7 +28,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -36,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +53,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.krishnagurram.budguard.data.ItemStore
 import dev.krishnagurram.budguard.data.Prefs
+import dev.krishnagurram.budguard.data.SafePlace
+import dev.krishnagurram.budguard.tracking.EventRecorder
+import kotlinx.coroutines.launch
 
 @Composable
 fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> Unit, onTagLab: () -> Unit) {
@@ -58,6 +69,40 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
     var battery by remember { mutableStateOf(prefs.batteryOn) }
     var moving by remember { mutableStateOf(prefs.movingOn) }
     var charge by remember { mutableStateOf(prefs.chargeOn) }
+    var tagAlerts by remember { mutableStateOf(prefs.tagAlertsOn) }
+    var tagBattery by remember { mutableStateOf(prefs.tagBatteryOn) }
+    var places by remember { mutableStateOf(ItemStore.safePlaces(context)) }
+    var naming by remember { mutableStateOf(false) }
+    var placeName by remember { mutableStateOf("Home") }
+    var placeNote by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    if (naming) {
+        AlertDialog(
+            onDismissRequest = { naming = false },
+            title = { Text("Name this safe place") },
+            text = {
+                OutlinedTextField(value = placeName, onValueChange = { placeName = it }, singleLine = true, label = { Text("Name") })
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    naming = false
+                    placeNote = "Finding where you are…"
+                    scope.launch {
+                        val here = EventRecorder.currentLocation(context)
+                        if (here == null) {
+                            placeNote = "Couldn't get your location. Try again outside."
+                        } else {
+                            places = places + SafePlace(placeName.trim().ifBlank { "Safe place" }, here.latitude, here.longitude, 150)
+                            ItemStore.saveSafePlaces(context, places)
+                            placeNote = null
+                        }
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { naming = false }) { Text("Cancel") } },
+        )
+    }
 
     Column(
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -102,6 +147,49 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
             ToggleRow(Icons.Filled.Refresh, Palette.Green, "They need charging", "Unseen 6 hours below 20%", charge) {
                 charge = it
                 prefs.chargeOn = it
+            }
+        }
+
+        SectionLabel("Your tags")
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
+            ToggleRow(Icons.Filled.Place, Palette.Red, "A tag is left behind", "Wallet and other SmartTags, via Samsung Find", tagAlerts) {
+                tagAlerts = it
+                prefs.tagAlertsOn = it
+            }
+            Divider()
+            ToggleRow(Icons.Filled.Warning, Palette.Orange, "Tag battery is low", "At 15%, once per coin cell", tagBattery) {
+                tagBattery = it
+                prefs.tagBatteryOn = it
+            }
+        }
+
+        SectionLabel("Safe places · tags may stay here")
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
+            places.forEach { place ->
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconTile(Icons.Filled.Home, Palette.Green)
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(place.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
+                        Text("${place.radiusM} m around", fontSize = 13.sp, color = Palette.Quiet)
+                    }
+                    TextButton(onClick = {
+                        places = places - place
+                        ItemStore.saveSafePlaces(context, places)
+                    }) { Text("Remove") }
+                }
+                Divider()
+            }
+            Row(
+                Modifier.fillMaxWidth().clickable { naming = true }.padding(horizontal = 18.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconTile(Icons.Filled.Add, Palette.Blue)
+                Spacer(Modifier.width(14.dp))
+                Text(placeNote ?: "Add where you are now", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Blue)
             }
         }
 

@@ -79,6 +79,70 @@ object Alerts {
         )
     }
 
+    @SuppressLint("MissingPermission")
+    fun tagLeftBehind(context: Context, item: dev.krishnagurram.budguard.data.TagItem, distanceM: Double?) {
+        if (!EventRecorder.granted(context, Manifest.permission.POST_NOTIFICATIONS)) return
+        val where = item.place ?: "its last spot"
+        val far = distanceM?.let { if (it >= 1000) String.format(Locale.US, "%.1f km", it / 1000) else "${it.toInt()} m" }
+        val text = "Left at $where${far?.let { ", $it from you" } ?: ""}. Seen ${Format.ago(System.currentTimeMillis(), item.fixTime)}."
+        val code = tagCode(item.id)
+        val builder = NotificationCompat.Builder(context, BudGuardApp.CHANNEL_LEFT)
+            .setSmallIcon(R.drawable.ic_buds)
+            .setContentTitle("You left your ${item.label}")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(openApp(context))
+        val lat = item.lat
+        val lng = item.lng
+        if (lat != null && lng != null) {
+            builder.addAction(
+                0,
+                "Directions",
+                PendingIntent.getActivity(
+                    context,
+                    code,
+                    Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=$lat,$lng&mode=w")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                ),
+            )
+        }
+        builder.addAction(0, "Ring", tagAction(context, item.id, TagActionReceiver.ACTION_RING, code + 1))
+        builder.addAction(0, "I have it", tagAction(context, item.id, TagActionReceiver.ACTION_HAVE_IT, code + 2))
+        runCatching { NotificationManagerCompat.from(context).notify(code, builder.build()) }
+    }
+
+    fun tagBattery(context: Context, item: dev.krishnagurram.budguard.data.TagItem) {
+        post(
+            context,
+            channel = BudGuardApp.CHANNEL_BATTERY,
+            id = tagCode(item.id) + 3,
+            title = "${item.label} tag battery at ${item.battery ?: "?"}%",
+            text = "Swap the coin cell (CR2032 for SmartTag2) soon so it doesn't go dark.",
+        )
+    }
+
+    fun clearTag(context: Context, id: String) = NotificationManagerCompat.from(context).cancel(tagCode(id))
+
+    private fun tagCode(id: String): Int = 1000 + (id.hashCode() and 0x3FFF) * 4
+
+    private fun tagAction(context: Context, id: String, action: String, code: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            code,
+            Intent(context, TagActionReceiver::class.java).setAction(action).putExtra(TagActionReceiver.EXTRA_ID, id),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
+    private fun openApp(context: Context): PendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
     fun clearLoss(context: Context) {
         val nm = NotificationManagerCompat.from(context)
         nm.cancel(ID_DISCONNECT)

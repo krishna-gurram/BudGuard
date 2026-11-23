@@ -37,12 +37,16 @@ object Format {
         EventType.APPEARED -> "Nearby again"
         EventType.DISAPPEARED -> "Out of range"
         EventType.BATTERY -> "Battery ${battery ?: "?"}%, spot saved"
+        EventType.TAG_LEFT -> "Left behind"
+        EventType.TAG_BACK -> "Back with you"
+        EventType.TAG_BATTERY -> "Tag battery ${battery ?: "?"}%"
     }
 
     fun source(source: EventSource): String = when (source) {
         EventSource.BLUETOOTH -> "Bluetooth"
         EventSource.ANDROID_LINK -> "Android link"
         EventSource.BATTERY_BROADCAST -> "Battery"
+        EventSource.SAMSUNG -> "Samsung Find"
     }
 
     /** Returns the threshold crossed when battery drops from [previous] to [current], or null. */

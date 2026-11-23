@@ -1,8 +1,8 @@
 package dev.krishnagurram.budguard.data
 
-enum class EventType { CONNECTED, DISCONNECTED, APPEARED, DISAPPEARED, BATTERY }
+enum class EventType { CONNECTED, DISCONNECTED, APPEARED, DISAPPEARED, BATTERY, TAG_LEFT, TAG_BACK, TAG_BATTERY }
 
-enum class EventSource { BLUETOOTH, ANDROID_LINK, BATTERY_BROADCAST }
+enum class EventSource { BLUETOOTH, ANDROID_LINK, BATTERY_BROADCAST, SAMSUNG }
 
 data class BudEvent(
     val id: Long,
@@ -15,6 +15,7 @@ data class BudEvent(
     val place: String?,
     val battery: Int?,
     val moving: Boolean = false,
+    val item: String? = null,
 ) {
     val hasLocation: Boolean get() = lat != null && lng != null
 

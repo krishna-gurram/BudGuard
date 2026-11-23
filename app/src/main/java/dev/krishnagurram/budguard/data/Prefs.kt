@@ -28,6 +28,14 @@ class Prefs(context: Context) {
     var chargeOn: Boolean get() = on("charge_on"); set(v) = setBool("charge_on", v)
     var radiusM: Int get() = int("radius_m", 150); set(v) = setInt("radius_m", v)
 
+    // Tags
+    var tagAlertsOn: Boolean get() = on("tag_alerts_on"); set(v) = setBool("tag_alerts_on", v)
+    var tagBatteryOn: Boolean get() = on("tag_battery_on"); set(v) = setBool("tag_battery_on", v)
+    var tagCheckTime: Long get() = long("tag_check_time"); set(v) = setLong("tag_check_time", v)
+    var tagCheckReason: String? get() = str("tag_check_reason"); set(v) = setStr("tag_check_reason", v)
+    var tagCheckResult: String? get() = str("tag_check_result"); set(v) = setStr("tag_check_result", v)
+    var moveFenceStatus: String? get() = str("move_fence_status"); set(v) = setStr("move_fence_status", v)
+
     // Which buds
     var budsAddress: String? get() = str("buds_address"); set(v) = setStr("buds_address", v)
     var budsName: String? get() = str("buds_name"); set(v) = setStr("buds_name", v)
