@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Icon
@@ -48,7 +49,7 @@ import androidx.compose.ui.unit.sp
 import dev.krishnagurram.budguard.data.Prefs
 
 @Composable
-fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> Unit) {
+fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> Unit, onTagLab: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { Prefs(context) }
 
@@ -106,6 +107,8 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
 
         SectionLabel("More")
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
+            LinkRow(Icons.Filled.Search, "Tag Lab", "Phase 7 test for your wallet SmartTag2", onTagLab)
+            Divider()
             LinkRow(Icons.Filled.Info, "Diagnostics", "Health checks and the report for Claude", onDiagnostics)
             Divider()
             LinkRow(Icons.Filled.Build, "Setup", "Permissions, buds, Android link", onSetup)

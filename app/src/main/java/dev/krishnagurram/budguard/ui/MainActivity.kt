@@ -58,7 +58,7 @@ import dev.krishnagurram.budguard.tracking.CompanionLink
 import dev.krishnagurram.budguard.tracking.Driving
 import dev.krishnagurram.budguard.tracking.LeftBehind
 
-enum class Screen { Buds, Timeline, Find, Alerts, Diagnostics, Setup }
+enum class Screen { Buds, Timeline, Find, Alerts, Diagnostics, Setup, TagLab }
 
 class MainActivity : ComponentActivity() {
 
@@ -124,7 +124,9 @@ private fun AppRoot() {
                 modifier.statusBarsPadding(),
                 onDiagnostics = { screen = Screen.Diagnostics },
                 onSetup = { screen = Screen.Setup },
+                onTagLab = { screen = Screen.TagLab },
             )
+            Screen.TagLab -> TagLabScreen(modifier.statusBarsPadding(), onBack = { screen = Screen.Alerts })
             Screen.Diagnostics -> DiagnosticsScreen(
                 modifier.statusBarsPadding(),
                 events,
@@ -172,7 +174,7 @@ private fun PillNav(current: Screen, dark: Boolean, onSelect: (Screen) -> Unit, 
         PillItem(
             "Alerts",
             Icons.Filled.Notifications,
-            current == Screen.Alerts || current == Screen.Diagnostics,
+            current == Screen.Alerts || current == Screen.Diagnostics || current == Screen.TagLab,
             dark,
         ) { onSelect(Screen.Alerts) }
     }
