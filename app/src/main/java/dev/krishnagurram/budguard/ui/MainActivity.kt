@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -37,7 +38,7 @@ import dev.krishnagurram.budguard.data.Prefs
 import dev.krishnagurram.budguard.tracking.BluetoothReceiver
 import dev.krishnagurram.budguard.tracking.CompanionLink
 
-enum class Screen { Buds, Timeline, Diagnostics, Setup }
+enum class Screen { Buds, Timeline, Find, Diagnostics, Setup }
 
 class MainActivity : ComponentActivity() {
 
@@ -91,6 +92,7 @@ private fun AppRoot() {
                 NavigationBar(containerColor = Palette.Card) {
                     navItem(screen == Screen.Buds, "Buds", Icons.Filled.Home) { screen = Screen.Buds }
                     navItem(screen == Screen.Timeline, "Timeline", Icons.Filled.List) { screen = Screen.Timeline }
+                    navItem(screen == Screen.Find, "Find", Icons.Filled.Search) { screen = Screen.Find }
                     navItem(screen == Screen.Diagnostics, "Diagnostics", Icons.Filled.Info) { screen = Screen.Diagnostics }
                 }
             }
@@ -100,6 +102,7 @@ private fun AppRoot() {
         when (screen) {
             Screen.Buds -> HomeScreen(modifier, events, status, onSetup = { screen = Screen.Setup }, onTimeline = { screen = Screen.Timeline })
             Screen.Timeline -> TimelineScreen(modifier, events)
+            Screen.Find -> FinderScreen(modifier)
             Screen.Diagnostics -> DiagnosticsScreen(modifier, events, status, refresh, onSetup = { screen = Screen.Setup }, onClear = { store.clear() })
             Screen.Setup -> SetupScreen(modifier, status, onRefresh = { refresh++ }, onDone = { screen = Screen.Buds })
         }

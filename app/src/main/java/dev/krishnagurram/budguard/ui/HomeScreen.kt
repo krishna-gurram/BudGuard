@@ -160,7 +160,7 @@ fun HomeScreen(
         }
 
         Text(
-            "Left-behind alerts are on. Coming next: battery snapshot tuning (v0.3), finder with Play sound (v0.4).",
+            "Left-behind alerts, battery snapshots and the Find tab are on. Next: the premium design (v0.5).",
             fontSize = 12.sp,
             color = Palette.Quiet,
             modifier = Modifier.padding(8.dp),
