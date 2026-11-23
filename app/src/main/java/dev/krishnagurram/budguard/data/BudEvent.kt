@@ -14,6 +14,7 @@ data class BudEvent(
     val accuracyM: Float?,
     val place: String?,
     val battery: Int?,
+    val moving: Boolean = false,
 ) {
     val hasLocation: Boolean get() = lat != null && lng != null
 

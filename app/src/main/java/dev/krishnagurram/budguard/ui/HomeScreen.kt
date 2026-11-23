@@ -160,7 +160,7 @@ fun HomeScreen(
         }
 
         Text(
-            "Coming next: left-behind alerts (v0.2), finder with Play sound (v0.4).",
+            "Left-behind alerts are on. Coming next: battery snapshot tuning (v0.3), finder with Play sound (v0.4).",
             fontSize = 12.sp,
             color = Palette.Quiet,
             modifier = Modifier.padding(8.dp),

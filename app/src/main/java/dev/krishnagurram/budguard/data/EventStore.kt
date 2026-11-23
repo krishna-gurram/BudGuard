@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 
 /** On-device event log. Everything stays on the phone. */
 class EventStore private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "budguard.db", null, 1) {
+    SQLiteOpenHelper(context.applicationContext, "budguard.db", null, 2) {
 
     private val version = MutableStateFlow(0)
 
@@ -29,14 +29,22 @@ class EventStore private constructor(context: Context) :
                 lng REAL,
                 accuracy REAL,
                 place TEXT,
-                battery INTEGER
+                battery INTEGER,
+                moving INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent(),
         )
         db.execSQL("CREATE INDEX events_time ON events(time)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL("ALTER TABLE events ADD COLUMN moving INTEGER NOT NULL DEFAULT 0")
+    }
+
+    fun markMoving(id: Long) {
+        writableDatabase.execSQL("UPDATE events SET moving = 1 WHERE id = ?", arrayOf(id))
+        version.value++
+    }
 
     fun insert(time: Long, type: EventType, source: EventSource, battery: Int? = null): Long {
         val values = ContentValues().apply {
@@ -91,6 +99,7 @@ class EventStore private constructor(context: Context) :
             accuracyM = if (isNull(accIdx)) null else getFloat(accIdx),
             place = if (isNull(placeIdx)) null else getString(placeIdx),
             battery = if (isNull(battIdx)) null else getInt(battIdx),
+            moving = getInt(getColumnIndexOrThrow("moving")) == 1,
         )
     }
 

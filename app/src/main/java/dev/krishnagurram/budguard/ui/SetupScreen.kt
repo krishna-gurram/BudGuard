@@ -51,6 +51,10 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
     val basicPermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { onRefresh() }
     val backgroundLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { onRefresh() }
     val linkApproval = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { onRefresh() }
+    val activityPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        dev.krishnagurram.budguard.tracking.Driving.register(context)
+        onRefresh()
+    }
 
     val bonded = remember(status.bluetooth, status.budsAddress) {
         if (status.bluetooth) CompanionLink.bondedAudioFirst(context) else emptyList()
@@ -170,6 +174,14 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
                 )
             }
         }
+
+        Step(
+            n = 6,
+            done = status.activity,
+            title = "Know when you're driving",
+            body = "Allow physical activity so a disconnect in a car or ride share warns you to check the seat.",
+            action = "Allow",
+        ) { activityPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION) }
 
         Button(
             onClick = onDone,

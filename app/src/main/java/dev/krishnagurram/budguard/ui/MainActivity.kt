@@ -45,6 +45,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         CompanionLink.observe(this, Prefs(this).budsAddress)
+        dev.krishnagurram.budguard.tracking.Driving.register(this)
+        dev.krishnagurram.budguard.tracking.LeftBehind.rearm(this)
         setContent { BudGuardTheme { AppRoot() } }
     }
 }

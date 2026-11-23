@@ -45,12 +45,10 @@ class BudsCompanionService : CompanionDeviceService() {
     }
 
     override fun onDeviceAppeared(associationInfo: AssociationInfo) {
-        val app = applicationContext
-        scope.launch { EventRecorder.record(app, EventType.APPEARED, EventSource.ANDROID_LINK) }
+        Presence.onRaw(applicationContext, present = true, source = EventSource.ANDROID_LINK)
     }
 
     override fun onDeviceDisappeared(associationInfo: AssociationInfo) {
-        val app = applicationContext
-        scope.launch { EventRecorder.record(app, EventType.DISAPPEARED, EventSource.ANDROID_LINK) }
+        Presence.onRaw(applicationContext, present = false, source = EventSource.ANDROID_LINK)
     }
 }

@@ -17,6 +17,7 @@ data class SetupStatus(
     val budsAddress: String?,
     val linked: Boolean,
     val unrestricted: Boolean,
+    val activity: Boolean,
 ) {
     val coreReady: Boolean get() = bluetooth && location && backgroundLocation && budsAddress != null
 
@@ -36,6 +37,7 @@ data class SetupStatus(
                 budsAddress = prefs.budsAddress,
                 linked = CompanionLink.isLinked(context, prefs.budsAddress),
                 unrestricted = power?.isIgnoringBatteryOptimizations(context.packageName) == true,
+                activity = has(Manifest.permission.ACTIVITY_RECOGNITION),
             )
         }
     }

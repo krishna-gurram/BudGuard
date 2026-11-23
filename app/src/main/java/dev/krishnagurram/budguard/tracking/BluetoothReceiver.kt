@@ -35,10 +35,10 @@ class BluetoothReceiver : BroadcastReceiver() {
     private suspend fun handle(context: Context, intent: Intent, prefs: Prefs) {
         when (intent.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED ->
-                EventRecorder.record(context, EventType.CONNECTED, EventSource.BLUETOOTH)
+                Presence.onRaw(context, present = true, source = EventSource.BLUETOOTH)
 
             BluetoothDevice.ACTION_ACL_DISCONNECTED ->
-                EventRecorder.record(context, EventType.DISCONNECTED, EventSource.BLUETOOTH)
+                Presence.onRaw(context, present = false, source = EventSource.BLUETOOTH)
 
             ACTION_BATTERY_LEVEL_CHANGED -> {
                 val level = intent.getIntExtra(EXTRA_BATTERY_LEVEL, -1)

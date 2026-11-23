@@ -99,6 +99,7 @@ private fun EventRow(e: BudEvent, last: Boolean, onClick: () -> Unit) {
                 listOfNotNull(
                     e.place ?: if (e.hasLocation) coords(e) else "Location unavailable",
                     Format.accuracy(e.accuracyM),
+                    if (e.moving) "while moving" else null,
                     Format.source(e.source),
                 ).joinToString(" · "),
                 fontSize = 13.sp,

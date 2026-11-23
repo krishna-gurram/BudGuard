@@ -14,7 +14,14 @@ class BudGuardApp : Application() {
                 CHANNEL_LEFT,
                 "Buds left behind",
                 NotificationManager.IMPORTANCE_HIGH,
-            ).apply { description = "When your buds disconnect, with where it happened" },
+            ).apply { description = "When you walk away without your buds, or they drop off in a car" },
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_LOG,
+                "Disconnect log",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply { description = "Quiet note each time the buds disconnect" },
         )
         manager.createNotificationChannel(
             NotificationChannel(
@@ -28,5 +35,6 @@ class BudGuardApp : Application() {
     companion object {
         const val CHANNEL_LEFT = "left_behind"
         const val CHANNEL_BATTERY = "battery"
+        const val CHANNEL_LOG = "disconnect_log"
     }
 }

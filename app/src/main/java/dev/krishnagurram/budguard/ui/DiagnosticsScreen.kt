@@ -137,8 +137,8 @@ private fun buildSections(context: Context, events: List<BudEvent>, s: SetupStat
             ),
         ),
         "Events captured" to listOf(
-            Line(btOn + btOff > 0, "Bluetooth", "$btOn connects, $btOff disconnects"),
-            Line(if (s.linked) linkIn + linkOut > 0 else null, "Android link", "$linkIn nearby, $linkOut out of range"),
+            Line(if (btOn + btOff > 0) true else null, "Merged events", "$btOn connects, $btOff disconnects from ${prefs.rawSignals} raw signals"),
+            Line(if (s.linked && linkIn + linkOut > 0) true else null, "Android link (v0.1 events)", "$linkIn nearby, $linkOut out of range"),
             Line(
                 if (losses.isEmpty()) null else located == losses.size,
                 "Location on disconnects",
@@ -150,6 +150,21 @@ private fun buildSections(context: Context, events: List<BudEvent>, s: SetupStat
                 if (prefs.lastBattery >= 0) "${prefs.lastBattery}%, ${Format.ago(now, prefs.lastBatteryTime)}" else "None",
             ),
         ),
+        "Left-behind (v0.2)" to listOf(
+            Line(
+                if (prefs.fenceArmed) true else null,
+                "Fence",
+                (prefs.fenceStatus ?: "Not armed yet") +
+                    if (prefs.fenceArmed) ", ${prefs.fencePlace ?: "saved spot"}, ${Format.ago(now, prefs.fenceSince)}" else "",
+            ),
+            Line(null, "Left-behind alerts sent", "${prefs.leftBehindAlerts}"),
+            Line(
+                if (s.activity) true else null,
+                "Driving detection",
+                "${prefs.drivingStatus ?: "Not started"} · ${if (prefs.inVehicle) "in a vehicle now" else "not driving"} · ${prefs.drivingChanges} changes",
+            ),
+            Line(null, "Buds state", "${prefs.recordedState ?: "unknown"} (raw ${prefs.rawState ?: "none"})"),
+        ),
         "Setup" to listOf(
             Line(s.budsAddress != null, "Buds picked", s.budsName ?: "None"),
             Line(s.bluetooth, "Bluetooth permission", if (s.bluetooth) "Allowed" else "Missing"),
@@ -157,6 +172,7 @@ private fun buildSections(context: Context, events: List<BudEvent>, s: SetupStat
             Line(s.notifications, "Notifications", if (s.notifications) "Allowed" else "Missing"),
             Line(s.linked, "Android link", if (s.linked) "Linked" else "Not linked"),
             Line(s.unrestricted, "Battery optimization", if (s.unrestricted) "Unrestricted" else "Restricted, may miss events"),
+            Line(s.activity, "Physical activity", if (s.activity) "Allowed" else "Missing (Setup step 6)"),
         ),
         "Phone" to listOf(
             Line(null, "BudGuard ${appVersion(context)}", "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})"),

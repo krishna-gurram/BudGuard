@@ -2,46 +2,47 @@ package dev.krishnagurram.budguard.tracking
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import dev.krishnagurram.budguard.BudGuardApp
-import dev.krishnagurram.budguard.R
 import dev.krishnagurram.budguard.data.EventSource
 import dev.krishnagurram.budguard.data.EventStore
 import dev.krishnagurram.budguard.data.EventType
-import dev.krishnagurram.budguard.data.Format
 import dev.krishnagurram.budguard.data.Prefs
-import dev.krishnagurram.budguard.ui.MainActivity
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import kotlin.coroutines.resume
 
-/** Writes an event, then attaches where the phone was at that moment. */
+/** Writes a settled event, attaches where the phone was, then arms or disarms alerts. */
 object EventRecorder {
 
     private const val LOCATION_TIMEOUT_MS = 7_000L
     private const val GEOCODE_TIMEOUT_MS = 2_000L
-    private const val NOTIFY_DEDUPE_MS = 90_000L
 
-    suspend fun record(context: Context, type: EventType, source: EventSource, battery: Int? = null) {
+    // Faster than a brisk run: the phone is in a vehicle.
+    private const val MOVING_SPEED_MPS = 6f
+
+    suspend fun record(
+        context: Context,
+        type: EventType,
+        source: EventSource,
+        time: Long = System.currentTimeMillis(),
+        battery: Int? = null,
+    ) {
         val store = EventStore.get(context)
-        val now = System.currentTimeMillis()
-        val id = store.insert(now, type, source, battery)
+        val prefs = Prefs(context)
+        val id = store.insert(time, type, source, battery)
 
         val location = currentLocation(context)
+        val moving = prefs.inVehicle || (location?.hasSpeed() == true && location.speed >= MOVING_SPEED_MPS)
         var place: String? = null
         if (location != null) {
             place = placeName(context, location)
@@ -53,11 +54,18 @@ object EventRecorder {
                 place = place,
             )
         }
+        if (moving) store.markMoving(id)
 
         when (type) {
-            EventType.DISCONNECTED, EventType.DISAPPEARED -> notifyLoss(context, now, place, location)
-            EventType.BATTERY -> notifyBattery(context, battery, place)
-            else -> Unit
+            EventType.DISCONNECTED, EventType.DISAPPEARED -> {
+                Alerts.disconnected(context, time, place, location, moving)
+                if (location != null) LeftBehind.arm(context, location, place)
+            }
+            EventType.CONNECTED, EventType.APPEARED -> {
+                LeftBehind.disarm(context)
+                Alerts.clearLoss(context)
+            }
+            EventType.BATTERY -> Alerts.battery(context, battery, place)
         }
     }
 
@@ -112,54 +120,6 @@ object EventRecorder {
             .ifBlank { address.featureName }
     }
 
-    private fun notifyLoss(context: Context, now: Long, place: String?, location: Location?) {
-        val prefs = Prefs(context)
-        // Bluetooth and the Android link can both report the same disconnect.
-        if (now - prefs.lastLossNotifyTime < NOTIFY_DEDUPE_MS) return
-        prefs.lastLossNotifyTime = now
-
-        val where = place
-            ?: location?.let { String.format(Locale.US, "%.5f, %.5f", it.latitude, it.longitude) }
-            ?: "location unavailable"
-        post(
-            context,
-            channel = BudGuardApp.CHANNEL_LEFT,
-            id = 1,
-            title = "Buds disconnected at ${Format.clock(now)}",
-            text = "Saved: $where",
-        )
-    }
-
-    private fun notifyBattery(context: Context, battery: Int?, place: String?) {
-        post(
-            context,
-            channel = BudGuardApp.CHANNEL_BATTERY,
-            id = 2,
-            title = "Buds at ${battery ?: "?"}%, spot saved",
-            text = place ?: "They may go dark soon. Charge them when you can.",
-        )
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun post(context: Context, channel: String, id: Int, title: String, text: String) {
-        if (!granted(context, Manifest.permission.POST_NOTIFICATIONS)) return
-        val open = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.ic_buds)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .build()
-        runCatching { NotificationManagerCompat.from(context).notify(id, notification) }
-    }
-
-    private fun granted(context: Context, permission: String): Boolean =
+    fun granted(context: Context, permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 }
