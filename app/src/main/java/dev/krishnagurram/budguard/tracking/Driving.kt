@@ -66,6 +66,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         Driving.register(context)
         LeftBehind.rearm(context)
+        BatteryWatch.schedule(context)
         CompanionLink.observe(context, Prefs(context).budsAddress)
     }
 }

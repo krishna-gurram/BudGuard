@@ -69,6 +69,16 @@ object Alerts {
         )
     }
 
+    fun charge(context: Context, battery: Int) {
+        post(
+            context,
+            channel = BudGuardApp.CHANNEL_BATTERY,
+            id = ID_BATTERY,
+            title = "Charge your buds",
+            text = "Last seen at $battery%, and not connected for 6 hours. Put them on the charger before they go dark.",
+        )
+    }
+
     fun clearLoss(context: Context) {
         val nm = NotificationManagerCompat.from(context)
         nm.cancel(ID_DISCONNECT)

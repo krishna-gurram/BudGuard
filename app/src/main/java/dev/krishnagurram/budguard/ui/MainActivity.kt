@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
         CompanionLink.observe(this, Prefs(this).budsAddress)
         dev.krishnagurram.budguard.tracking.Driving.register(this)
         dev.krishnagurram.budguard.tracking.LeftBehind.rearm(this)
+        dev.krishnagurram.budguard.tracking.BatteryWatch.schedule(this)
         setContent { BudGuardTheme { AppRoot() } }
     }
 }

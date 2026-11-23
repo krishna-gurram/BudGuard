@@ -146,7 +146,7 @@ private fun buildSections(context: Context, events: List<BudEvent>, s: SetupStat
             ),
             Line(
                 null,
-                "Last battery report",
+                "Last battery (${prefs.batteryChecks} background checks)",
                 if (prefs.lastBattery >= 0) "${prefs.lastBattery}%, ${Format.ago(now, prefs.lastBatteryTime)}" else "None",
             ),
         ),

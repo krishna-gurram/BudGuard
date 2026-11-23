@@ -29,6 +29,9 @@ class Prefs(context: Context) {
     var lastBattery: Int get() = int("last_battery", -1); set(v) = setInt("last_battery", v)
     var lastBatteryTime: Long get() = long("last_battery_time"); set(v) = setLong("last_battery_time", v)
 
+    var batteryChecks: Int get() = int("battery_checks"); set(v) = setInt("battery_checks", v)
+    var lastChargeNag: Long get() = long("last_charge_nag"); set(v) = setLong("last_charge_nag", v)
+
     // Presence: raw signals settle into a recorded state
     var rawState: String? get() = str("raw_state"); set(v) = setStr("raw_state", v)
     var rawSince: Long get() = long("raw_since"); set(v) = setLong("raw_since", v)

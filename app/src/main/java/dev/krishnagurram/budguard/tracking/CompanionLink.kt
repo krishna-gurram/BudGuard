@@ -95,15 +95,31 @@ object CompanionLink {
             device.bluetoothClass?.majorDeviceClass == android.bluetooth.BluetoothClass.Device.Major.AUDIO_VIDEO
         }.getOrDefault(false)
 
-    /** Reads Android's own battery value for the buds through a hidden API, for diagnostics. */
+    /** Android's own battery value for the buds (hidden API), or null if unavailable. */
     @SuppressLint("MissingPermission")
-    fun systemBattery(context: Context, address: String?): String {
-        if (address == null) return "no buds picked"
-        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return "no Bluetooth"
+    fun batteryLevel(context: Context, address: String?): Int? {
+        if (address == null) return null
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return null
         return runCatching {
             val device = adapter.getRemoteDevice(address)
-            val level = device.javaClass.getMethod("getBatteryLevel").invoke(device) as Int
-            if (level < 0) "not reported (-1)" else "$level%"
-        }.getOrElse { "blocked (${it.javaClass.simpleName})" }
+            device.javaClass.getMethod("getBatteryLevel").invoke(device) as Int
+        }.getOrNull()
+    }
+
+    fun systemBattery(context: Context, address: String?): String {
+        if (address == null) return "no buds picked"
+        val level = batteryLevel(context, address) ?: return "blocked"
+        return if (level < 0) "not reported (-1)" else "$level%"
+    }
+
+    /** Every paired identity of the picked buds: the picked one plus same-named or "Buds" LE entries. */
+    @SuppressLint("MissingPermission")
+    fun budsAddresses(context: Context, picked: String?, pickedName: String?): Set<String> {
+        val out = mutableSetOf<String>()
+        if (picked != null) out += picked.uppercase()
+        bondedAudioFirst(context)
+            .filter { it.name == pickedName || it.name.contains("Buds", ignoreCase = true) }
+            .forEach { out += it.address.uppercase() }
+        return out
     }
 }

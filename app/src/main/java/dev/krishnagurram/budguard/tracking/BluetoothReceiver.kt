@@ -58,10 +58,10 @@ class BluetoothReceiver : BroadcastReceiver() {
         fun addressOf(device: BluetoothDevice): String? = runCatching { device.address }.getOrNull()
 
         /** Shared by the manifest receiver, the companion service and the open app. */
-        suspend fun onBattery(context: Context, prefs: Prefs, level: Int) {
+        suspend fun onBattery(context: Context, prefs: Prefs, level: Int, countReport: Boolean = true) {
             if (level < 0) return
             val previous = prefs.lastBattery
-            prefs.batteryBroadcasts = prefs.batteryBroadcasts + 1
+            if (countReport) prefs.batteryBroadcasts = prefs.batteryBroadcasts + 1
             prefs.lastBattery = level
             prefs.lastBatteryTime = System.currentTimeMillis()
 
