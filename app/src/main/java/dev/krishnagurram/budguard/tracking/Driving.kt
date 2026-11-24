@@ -55,7 +55,7 @@ class DrivingReceiver : BroadcastReceiver() {
         val last = result.transitionEvents.lastOrNull { it.activityType == DetectedActivity.IN_VEHICLE } ?: return
         val prefs = Prefs(context)
         prefs.inVehicle = last.transitionType == ActivityTransition.ACTIVITY_TRANSITION_ENTER
-        if (prefs.inVehicle) TagWatch.checkSoon(context, "you started driving")
+        TagWatch.checkSoon(context, if (prefs.inVehicle) "you started driving" else "you stopped driving")
         prefs.drivingChanges = prefs.drivingChanges + 1
     }
 }

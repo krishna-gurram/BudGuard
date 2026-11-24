@@ -11,11 +11,23 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import dev.krishnagurram.budguard.data.ItemStore
 import dev.krishnagurram.budguard.data.Prefs
+import dev.krishnagurram.budguard.data.TagItem
+import dev.krishnagurram.budguard.data.TagState
 
 /**
  * When the buds drop, fence the spot. Walking out of the fence while the buds
  * are still gone means they were left behind.
+ *
+ * A closed case goes silent, so "gone" can also mean "in your pocket". Two guards:
+ * no fence when the buds go off while you're driving (they're in the car), and
+ * if a tag rides on the case, ask it before alerting.
  */
 object LeftBehind {
 
@@ -26,6 +38,20 @@ object LeftBehind {
     /** Pure decision, unit-tested: should a fence exit raise the alert? */
     fun shouldAlert(budsGone: Boolean, armed: Boolean, now: Long, expiresAt: Long): Boolean =
         budsGone && armed && now < expiresAt
+
+    /** Pure decision, unit-tested: fence the spot only if we know it and you're standing there. */
+    fun shouldArm(hasLocation: Boolean, moving: Boolean): Boolean = hasLocation && !moving
+
+    /** Pure decision, unit-tested: what the case tags say about the buds. */
+    fun caseSays(caseTags: List<TagState>): CaseVerdict = when {
+        caseTags.isEmpty() -> CaseVerdict.NO_CASE_TAG
+        caseTags.any { it == TagState.WITH_YOU } -> CaseVerdict.WITH_YOU
+        else -> CaseVerdict.NOT_WITH_YOU
+    }
+
+    enum class CaseVerdict { NO_CASE_TAG, WITH_YOU, NOT_WITH_YOU }
+
+    fun isCaseTag(item: TagItem): Boolean = item.icon == "case"
 
     @SuppressLint("MissingPermission")
     fun arm(context: Context, location: Location, place: String?) {
@@ -99,12 +125,51 @@ class FenceReceiver : BroadcastReceiver() {
 
         val prefs = Prefs(context)
         val budsGone = prefs.recordedState == Presence.LOST
-        if (LeftBehind.shouldAlert(budsGone, prefs.fenceArmed, System.currentTimeMillis(), prefs.fenceExpiresAt)) {
+        val alert = LeftBehind.shouldAlert(budsGone, prefs.fenceArmed, System.currentTimeMillis(), prefs.fenceExpiresAt)
+        LeftBehind.disarm(context)
+        if (!alert) {
+            prefs.fenceStatus = "Fired, buds were with you"
+            return
+        }
+        if (ItemStore.items(context).none(LeftBehind::isCaseTag)) {
             prefs.leftBehindAlerts = prefs.leftBehindAlerts + 1
             Alerts.leftBehind(context, prefs.fencePlace, prefs.fenceLat, prefs.fenceLng, prefs.fenceSince)
+            prefs.fenceStatus = "Fired, then off"
+            return
         }
-        LeftBehind.disarm(context)
-        prefs.fenceStatus = "Fired, then off"
+        prefs.fenceStatus = "Fired, asking the case tag"
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            CaseCheckWorker.NAME,
+            ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<CaseCheckWorker>().build(),
+        )
+    }
+}
+
+/** Refreshes the case tag, then alerts only if it isn't with you. */
+class CaseCheckWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val context = applicationContext
+        val prefs = Prefs(context)
+        TagWatch.check(context, "buds fence fired")
+        if (prefs.recordedState != Presence.LOST) {
+            prefs.fenceStatus = "Buds came back during the check"
+            return Result.success()
+        }
+        val verdict = LeftBehind.caseSays(ItemStore.items(context).filter(LeftBehind::isCaseTag).map { it.state })
+        if (verdict == LeftBehind.CaseVerdict.WITH_YOU) {
+            prefs.fenceStatus = "Case tag is with you; no alert"
+        } else {
+            prefs.leftBehindAlerts = prefs.leftBehindAlerts + 1
+            Alerts.leftBehind(context, prefs.fencePlace, prefs.fenceLat, prefs.fenceLng, prefs.fenceSince)
+            prefs.fenceStatus = "Case tag not with you; alerted"
+        }
+        return Result.success()
+    }
+
+    companion object {
+        const val NAME = "case_check"
     }
 }
 

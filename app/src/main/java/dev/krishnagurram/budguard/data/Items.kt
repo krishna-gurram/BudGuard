@@ -35,6 +35,9 @@ data class TagItem(
 
 data class SafePlace(val name: String, val lat: Double, val lng: Double, val radiusM: Int = 150)
 
+/** Where the phone was: within [radiusM] of this point at [time]. */
+data class Crumb(val lat: Double, val lng: Double, val radiusM: Double, val time: Long)
+
 /** Tags and safe places, kept as small JSON blobs on the phone. */
 object ItemStore {
 
@@ -65,6 +68,15 @@ object ItemStore {
 
     fun saveSafePlaces(context: Context, places: List<SafePlace>) =
         sp(context).edit().putString("places", encodePlaces(places)).apply()
+
+    /** Recent phone positions, newest last. Kept short: 12 hours, at most 60 points. */
+    fun trail(context: Context): List<Crumb> =
+        runCatching { decodeTrail(sp(context).getString("trail", "[]") ?: "[]") }.getOrDefault(emptyList())
+
+    fun addCrumb(context: Context, crumb: Crumb) {
+        val kept = TagRules.pruneTrail(trail(context) + crumb, crumb.time)
+        sp(context).edit().putString("trail", encodeTrail(kept)).apply()
+    }
 
     fun guessIcon(name: String): String = when {
         name.contains("wallet", true) -> "wallet"
@@ -128,6 +140,18 @@ object ItemStore {
         }
     }
 
+    fun encodeTrail(trail: List<Crumb>): String = JSONArray().apply {
+        trail.forEach { put(JSONObject().put("lat", it.lat).put("lng", it.lng).put("r", it.radiusM).put("t", it.time)) }
+    }.toString()
+
+    fun decodeTrail(json: String): List<Crumb> {
+        val arr = JSONArray(json)
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            Crumb(o.getDouble("lat"), o.getDouble("lng"), o.optDouble("r", 50.0), o.getLong("t"))
+        }
+    }
+
     private fun JSONObject.optDoubleOrNull(key: String): Double? = if (isNull(key) || !has(key)) null else optDouble(key)
 }
 
@@ -135,6 +159,25 @@ object ItemStore {
 object TagRules {
 
     const val FRESH_MS = 30L * 60 * 1000
+
+    /** A tag spot counts as left behind only if Samsung saw it there this long after you left. */
+    const val TRAIL_GRACE_MS = 2L * 60 * 1000
+    const val TRAIL_KEEP_MS = 12L * 60 * 60 * 1000
+    const val TRAIL_MAX = 60
+
+    fun pruneTrail(trail: List<Crumb>, now: Long): List<Crumb> =
+        trail.filter { now - it.time <= TRAIL_KEEP_MS }.sortedBy { it.time }.takeLast(TRAIL_MAX)
+
+    /**
+     * The last time the phone was at the tag's spot, or null if the trail never passed there.
+     * If that is at or after the fix, the fix only shows the tag was with you before you left.
+     */
+    fun lastTimeAt(lat: Double, lng: Double, tagAccuracyM: Double, radiusM: Int, trail: List<Crumb>): Long? =
+        trail.filter { distanceM(lat, lng, it.lat, it.lng) <= radiusM + it.radiusM + tagAccuracyM }
+            .maxOfOrNull { it.time }
+
+    fun isTrailing(fixTime: Long, lastAtSpot: Long?): Boolean =
+        lastAtSpot != null && fixTime <= lastAtSpot + TRAIL_GRACE_MS
 
     fun distanceM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val r = 6_371_000.0
@@ -147,12 +190,14 @@ object TagRules {
     fun safePlaceAt(lat: Double, lng: Double, places: List<SafePlace>): SafePlace? =
         places.firstOrNull { distanceM(lat, lng, it.lat, it.lng) <= it.radiusM }
 
-    data class Verdict(val state: TagState, val distanceM: Double?, val safePlace: String?)
+    data class Verdict(val state: TagState, val distanceM: Double?, val safePlace: String?, val trailing: Boolean = false)
 
     /**
      * Is the tag with you? "With you" when its newest spot is within the alert distance
      * (widened by both GPS errors). A far spot only counts as left behind when it is
      * recent or was just refreshed, so a stale old spot never raises a false alarm.
+     * And it must have been seen there after you left: Samsung's spot lags behind
+     * you while you drive, so a spot from before you left is the tag riding along.
      */
     fun decide(
         phoneLat: Double,
@@ -163,6 +208,7 @@ object TagRules {
         places: List<SafePlace>,
         now: Long,
         refreshed: Boolean,
+        trail: List<Crumb> = emptyList(),
     ): Verdict {
         val lat = tag.lat ?: return Verdict(TagState.UNKNOWN, null, null)
         val lng = tag.lng ?: return Verdict(TagState.UNKNOWN, null, null)
@@ -170,6 +216,8 @@ object TagRules {
         val slack = radiusM + phoneAccuracyM + (tag.accuracyM ?: 0.0)
         if (d <= slack) return Verdict(TagState.WITH_YOU, d, null)
         safePlaceAt(lat, lng, places)?.let { return Verdict(TagState.LEFT_SAFE, d, it.name) }
+        val lastAtSpot = lastTimeAt(lat, lng, tag.accuracyM ?: 0.0, radiusM, trail)
+        if (isTrailing(tag.fixTime, lastAtSpot)) return Verdict(TagState.UNKNOWN, d, null, trailing = true)
         val fresh = now - tag.fixTime <= FRESH_MS
         return if (fresh || refreshed) Verdict(TagState.LEFT_BEHIND, d, null) else Verdict(TagState.UNKNOWN, d, null)
     }
