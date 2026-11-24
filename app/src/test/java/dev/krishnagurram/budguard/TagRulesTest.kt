@@ -1,5 +1,6 @@
 package dev.krishnagurram.budguard
 
+import dev.krishnagurram.budguard.data.Crumb
 import dev.krishnagurram.budguard.data.ItemStore
 import dev.krishnagurram.budguard.data.SafePlace
 import dev.krishnagurram.budguard.data.TagItem
@@ -46,6 +47,33 @@ class TagRulesTest {
         val v = TagRules.decide(33.4100, -112.1000, 10.0, wallet(33.3701, -112.1701, 60_000), 150, listOf(home), now, refreshed = true)
         assertEquals(TagState.LEFT_SAFE, v.state)
         assertEquals("Home", v.safePlace)
+    }
+
+    @Test
+    fun spotFromBeforeYouLeftIsRidingAlongNotLeftBehind() {
+        // Office at 33.4000. Samsung saw the wallet there 4 min ago; you drove off 3 min ago
+        // and are now 1.1 km away. The tag is in the car; Samsung just hasn't caught up.
+        val office = Crumb(33.4000, -112.1000, 150.0, now - 3 * 60_000)
+        val v = TagRules.decide(33.4100, -112.1000, 10.0, wallet(33.4000, -112.1000, 4 * 60_000), 150, emptyList(), now, refreshed = true, trail = listOf(office))
+        assertEquals(TagState.UNKNOWN, v.state)
+        assertTrue(v.trailing)
+    }
+
+    @Test
+    fun spotSeenAfterYouLeftIsLeftBehind() {
+        // You left the cafe 20 min ago; Samsung saw the wallet still there 5 min ago.
+        val cafe = Crumb(33.4000, -112.1000, 150.0, now - 20 * 60_000)
+        val v = TagRules.decide(33.4100, -112.1000, 10.0, wallet(33.4000, -112.1000, 5 * 60_000), 150, emptyList(), now, refreshed = false, trail = listOf(cafe))
+        assertEquals(TagState.LEFT_BEHIND, v.state)
+        assertFalse(v.trailing)
+    }
+
+    @Test
+    fun trailKeepsTwelveHoursAndRoundTrips() {
+        val old = Crumb(33.0, -112.0, 20.0, now - 13 * 3_600_000L)
+        val fresh = Crumb(33.1, -112.1, 150.0, now - 60_000)
+        assertEquals(listOf(fresh), TagRules.pruneTrail(listOf(fresh, old), now))
+        assertEquals(listOf(fresh), ItemStore.decodeTrail(ItemStore.encodeTrail(listOf(fresh))))
     }
 
     @Test

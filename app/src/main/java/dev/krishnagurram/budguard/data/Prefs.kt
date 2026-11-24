@@ -35,6 +35,9 @@ class Prefs(context: Context) {
     var tagCheckReason: String? get() = str("tag_check_reason"); set(v) = setStr("tag_check_reason", v)
     var tagCheckResult: String? get() = str("tag_check_result"); set(v) = setStr("tag_check_result", v)
     var moveFenceStatus: String? get() = str("move_fence_status"); set(v) = setStr("move_fence_status", v)
+    var moveFenceLat: Double get() = dbl("move_fence_lat"); set(v) = setDbl("move_fence_lat", v)
+    var moveFenceLng: Double get() = dbl("move_fence_lng"); set(v) = setDbl("move_fence_lng", v)
+    var moveFenceRadius: Int get() = int("move_fence_radius"); set(v) = setInt("move_fence_radius", v)
 
     // Which buds
     var budsAddress: String? get() = str("buds_address"); set(v) = setStr("buds_address", v)

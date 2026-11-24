@@ -16,7 +16,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = runNumber
-        versionName = "2.0.$runNumber"
+        versionName = "2.1.$runNumber"
     }
 
     // Personal sideloaded app: the key lives in this private repo so every

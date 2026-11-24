@@ -62,7 +62,12 @@ object EventRecorder {
         when (type) {
             EventType.DISCONNECTED, EventType.DISAPPEARED -> {
                 Alerts.disconnected(context, time, place, location, moving)
-                if (location != null) LeftBehind.arm(context, location, place)
+                if (LeftBehind.shouldArm(hasLocation = location != null, moving = moving)) {
+                    LeftBehind.arm(context, location!!, place)
+                } else if (moving) {
+                    // Case closed in a moving car: they're in the car with you, not at a spot to walk away from.
+                    prefs.fenceStatus = "Not armed: buds went off while driving"
+                }
             }
             EventType.CONNECTED, EventType.APPEARED -> {
                 LeftBehind.disarm(context)
