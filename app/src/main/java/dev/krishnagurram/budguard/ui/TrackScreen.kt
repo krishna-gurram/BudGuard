@@ -9,8 +9,13 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.location.Location
 import android.os.Looper
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,11 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -66,6 +66,7 @@ import dev.krishnagurram.budguard.data.Geo
 import dev.krishnagurram.budguard.data.ItemStore
 import dev.krishnagurram.budguard.data.Prefs
 import dev.krishnagurram.budguard.data.TagRules
+import dev.krishnagurram.budguard.data.TrackMode
 import dev.krishnagurram.budguard.tracking.BudsSound
 import dev.krishnagurram.budguard.tracking.SamsungFind
 import kotlinx.coroutines.delay
@@ -101,6 +102,8 @@ private data class Target(
     val place: String?,
     val isTag: Boolean,
     val withYou: Boolean,
+    val connected: Boolean = false,
+    val icon: String = "case",
 )
 
 /**
@@ -126,6 +129,7 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
     var styleReady by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf<String?>(null) }
     var playing by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
 
     // GPS only while this screen is in front.
     LifecycleResumeEffect(Unit) {
@@ -167,7 +171,9 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
     LaunchedEffect(targetId) {
         if (targetId == TRACK_BUDS) return@LaunchedEffect
         while (true) {
+            refreshing = true
             refreshTag(context, targetId)
+            refreshing = false
             tagVersion++
             delay(60_000)
         }
@@ -175,31 +181,82 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
 
     val distance = if (me != null && target != null) TagRules.distanceM(me!!.latitude, me!!.longitude, target.lat, target.lng) else null
     val bearing = if (me != null && target != null) Geo.bearingDeg(me!!.latitude, me!!.longitude, target.lat, target.lng) else null
-    val close = distance != null && distance <= Geo.CLOSE_M
+    val mode = if (target == null) TrackMode.LOCATING else Geo.trackMode(
+        certain = target.connected,
+        flaggedWithYou = target.withYou,
+        distanceM = distance,
+        itemAccuracyM = target.accuracyM,
+        phoneAccuracyM = me?.accuracy?.toDouble(),
+    )
 
-    // Keep the map's layers and camera in step with you and the item.
-    LaunchedEffect(me, target, follow, styleReady) {
+    // Map layers: the item's pin and the dashed line to it, only when it's somewhere else.
+    LaunchedEffect(me, target, mode, styleReady) {
         val m = map ?: return@LaunchedEffect
         val style = m.style ?: return@LaunchedEffect
-        if (!styleReady || target == null) return@LaunchedEffect
-        val item = Point.fromLngLat(target.lng, target.lat)
-        style.getSourceAs<GeoJsonSource>("target")?.setGeoJson(Feature.fromGeometry(item))
+        if (!styleReady) return@LaunchedEffect
+        me?.let { runCatching { m.locationComponent.forceLocationUpdate(it) } }
+        val empty = FeatureCollection.fromFeatures(emptyList<Feature>())
+        val item = target?.let { Point.fromLngLat(it.lng, it.lat) }
         val here = me
-        if (here != null) {
-            runCatching { m.locationComponent.forceLocationUpdate(here) }
-            style.getSourceAs<GeoJsonSource>("route")
-                ?.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(listOf(Point.fromLngLat(here.longitude, here.latitude), item))))
+        style.getSourceAs<GeoJsonSource>("target")?.let { src ->
+            if (item == null || mode == TrackMode.WITH_YOU) src.setGeoJson(empty) else src.setGeoJson(Feature.fromGeometry(item))
         }
-        if (!follow) return@LaunchedEffect
-        val bottomPad = with(density) { 330.dp.toPx() }.toInt()
-        val sidePad = with(density) { 56.dp.toPx() }.toInt()
-        val topPad = with(density) { 110.dp.toPx() }.toInt()
-        if (here == null || (distance ?: 0.0) < 15) {
-            m.easeCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder().target(LatLng(target.lat, target.lng)).zoom(18.0).build()), 500)
-        } else {
-            val bounds = LatLngBounds.Builder().include(LatLng(here.latitude, here.longitude)).include(LatLng(target.lat, target.lng)).build()
-            m.easeCamera(CameraUpdateFactory.newLatLngBounds(bounds, sidePad, topPad, sidePad, bottomPad), 500)
+        style.getSourceAs<GeoJsonSource>("route")?.let { src ->
+            if (item != null && here != null && mode == TrackMode.AWAY) {
+                src.setGeoJson(Feature.fromGeometry(LineString.fromLngLats(listOf(Point.fromLngLat(here.longitude, here.latitude), item))))
+            } else {
+                src.setGeoJson(empty)
+            }
         }
+    }
+
+    // Camera: frame the item, not you. It moves when the item moves or the state changes,
+    // not every time your GPS dot twitches.
+    val hasMe = me != null
+    LaunchedEffect(mode, target?.lat, target?.lng, follow, styleReady, hasMe) {
+        val m = map ?: return@LaunchedEffect
+        if (!styleReady || !follow || target == null) return@LaunchedEffect
+        val here = me
+        val sheet = with(density) { 380.dp.toPx() }.toInt()
+        val side = with(density) { 64.dp.toPx() }.toInt()
+        val top = with(density) { 120.dp.toPx() }.toInt()
+        // Padding keeps the point of interest above the sheet.
+        fun center(lat: Double, lng: Double, zoom: Double) = m.easeCamera(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder().target(LatLng(lat, lng)).zoom(zoom).padding(0.0, top.toDouble(), 0.0, sheet.toDouble()).build(),
+            ),
+            700,
+        )
+        when {
+            mode == TrackMode.WITH_YOU -> if (here != null) center(here.latitude, here.longitude, 16.0) else center(target.lat, target.lng, 16.0)
+            mode == TrackMode.AWAY && here != null -> {
+                val bounds = LatLngBounds.Builder().include(LatLng(here.latitude, here.longitude)).include(LatLng(target.lat, target.lng)).build()
+                val framed = m.getCameraForLatLngBounds(bounds, intArrayOf(side, top, side, sheet))
+                if (framed != null) m.easeCamera(CameraUpdateFactory.newCameraPosition(framed), 700) else center(target.lat, target.lng, 15.0)
+            }
+            mode == TrackMode.NEARBY -> center(target.lat, target.lng, 18.0)
+            else -> center(target.lat, target.lng, 16.0)
+        }
+    }
+
+    val now = System.currentTimeMillis()
+    val ui = target?.let {
+        TrackUi(
+            label = it.label,
+            icon = it.icon,
+            isTag = it.isTag,
+            mode = mode,
+            connected = it.connected,
+            distanceM = distance,
+            bearingDeg = bearing,
+            turnDeg = if (bearing != null && heading != null) Geo.turnDeg(bearing, heading!!) else null,
+            seenAgo = Format.ago(now, it.seenAt),
+            place = it.place,
+            accuracyM = it.accuracyM,
+            playing = playing,
+            refreshing = refreshing,
+            note = note,
+        )
     }
 
     Box(modifier.fillMaxSize()) {
@@ -211,136 +268,64 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
             onUserPan = { follow = false },
         )
 
-        Row(Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onBack, modifier = Modifier.shadow(6.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color.White)) {
-                Text("‹ Back", color = Palette.Ink)
-            }
+        Row(Modifier.statusBarsPadding().padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Box(
+                Modifier.size(46.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(Color.White).clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Palette.Ink) }
             if (!follow) {
-                TextButton(
-                    onClick = { follow = true },
-                    modifier = Modifier.shadow(6.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color.White),
-                ) { Text("Re-center", color = Palette.Blue) }
-            }
-        }
-
-        Column(
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp).fillMaxWidth()
-                .shadow(16.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp)).background(Palette.Card).padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (target == null) {
-                Text("No saved spot for this item yet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-            } else {
-            Text(target.label, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
-            Text(
-                listOfNotNull(
-                    if (target.withYou) "With you" else target.place?.let { "At $it" },
-                    "seen ${Format.ago(System.currentTimeMillis(), target.seenAt)}",
-                    target.accuracyM?.let { Geo.accuracyText(it) },
-                ).joinToString(" · "),
-                fontSize = 14.sp,
-                color = Palette.Quiet,
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val turn = if (bearing != null && heading != null) Geo.turnDeg(bearing, heading!!) else null
-                Arrow(turnDeg = turn, close = close)
-                Spacer(Modifier.width(18.dp))
-                Column {
-                    Text(
-                        when {
-                            me == null -> "Finding you…"
-                            close -> "You're close"
-                            else -> Geo.distanceText(distance!!)
-                        },
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Palette.Ink,
-                    )
-                    Text(
-                        when {
-                            me == null -> "Allow location if this stays here"
-                            close && target.isTag -> "Ring it, or use Samsung's arrow"
-                            close -> "Play a sound or use the hot/cold meter"
-                            else -> "Head ${Geo.compassWord(bearing!!)} · ${Geo.walkText(distance!!)}"
-                        },
-                        fontSize = 14.sp,
-                        color = Palette.Quiet,
-                    )
+                Row(
+                    Modifier.height(46.dp).shadow(8.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(Color.White)
+                        .clickable { follow = true }.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.LocationOn, contentDescription = null, tint = Palette.Blue, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Re-center", color = Palette.Blue, fontWeight = FontWeight.SemiBold)
                 }
             }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        if (close) {
-                            if (target.isTag) openSamsungFind(context) else onNearby()
-                        } else {
-                            navigateTo(context, target.lat, target.lng)
-                        }
-                    },
-                    colors = blueButton,
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                ) { Text(if (close) (if (target.isTag) "Samsung arrow" else "Hot/cold") else "Directions") }
-                Button(
-                    onClick = {
-                        scope.launch {
-                            if (target.isTag) {
-                                note = "Asking Samsung to ring…"
-                                val s = SamsungFind.connect().getOrNull()
-                                val d = s?.let { session -> SamsungFind.devices(session).getOrNull()?.firstOrNull { it.id == targetId } }
-                                note = if (s != null && d != null) {
-                                    SamsungFind.ring(s, d, start = !playing).fold(
-                                        onSuccess = { playing = !playing; if (playing) "Ringing" else "Stopped" },
-                                        onFailure = { "Ring failed: ${it.message}" },
-                                    )
-                                } else {
-                                    "Sign in to Samsung again from Items"
-                                }
-                            } else if (playing) {
-                                note = BudsSound.stop()
-                                playing = false
-                            } else {
-                                note = BudsSound.start(context, prefs.budsAddress)
-                                playing = BudsSound.isPlaying
-                            }
-                        }
-                    },
-                    colors = softButton,
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                ) { Text(if (playing) "Stop" else if (target.isTag) "Ring" else "Play sound") }
-            }
-            note?.let { Text(it, fontSize = 13.sp, color = Palette.Quiet) }
-            }
         }
-    }
-}
 
-@Composable
-private fun Arrow(turnDeg: Double?, close: Boolean) {
-    val color = when {
-        close -> Palette.Green
-        turnDeg == null -> Palette.Grey
-        else -> Palette.Blue
-    }
-    Box(Modifier.size(84.dp).clip(RoundedCornerShape(50)).background(color.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(56.dp).rotate((turnDeg ?: 0.0).toFloat())) {
-            val w = size.width
-            val h = size.height
-            val path = Path().apply {
-                moveTo(w / 2, 0f)
-                lineTo(w, h)
-                lineTo(w / 2, h * 0.72f)
-                lineTo(0f, h)
-                close()
+        val sheetModifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(10.dp).shadow(20.dp, RoundedCornerShape(32.dp))
+        if (ui == null) {
+            Column(
+                sheetModifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)).background(Palette.Card).padding(22.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text("No saved spot yet", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
+                Text("Once your phone or Samsung reports where it is, it shows up here.", fontSize = 14.sp, color = Palette.Quiet)
             }
-            if (close) {
-                drawCircle(color, radius = w / 3, center = Offset(w / 2, h / 2))
-            } else {
-                drawPath(path, color)
-            }
+        } else {
+            TrackCard(
+                ui = ui,
+                modifier = sheetModifier,
+                onSound = {
+                    scope.launch {
+                        if (target.isTag) {
+                            note = if (playing) "Stopping…" else "Asking Samsung to ring…"
+                            val s = SamsungFind.connect().getOrNull()
+                            val d = s?.let { session -> SamsungFind.devices(session).getOrNull()?.firstOrNull { it.id == targetId } }
+                            note = if (s != null && d != null) {
+                                SamsungFind.ring(s, d, start = !playing).fold(
+                                    onSuccess = { playing = !playing; if (playing) "Ringing. Tap Stop when you have it." else null },
+                                    onFailure = { "Couldn't ring: ${it.message}" },
+                                )
+                            } else {
+                                "Sign in to Samsung again from Items"
+                            }
+                        } else if (playing) {
+                            note = BudsSound.stop()
+                            playing = false
+                        } else {
+                            note = "Connecting…"
+                            note = BudsSound.start(context, prefs.budsAddress)
+                            playing = BudsSound.isPlaying
+                        }
+                    }
+                },
+                onDirections = { navigateTo(context, target.lat, target.lng) },
+                onNearby = { if (target.isTag) openSamsungFind(context) else onNearby() },
+            )
         }
     }
 }
@@ -396,7 +381,7 @@ private fun TrackMap(onReady: (MapLibreMap) -> Unit, onUserPan: () -> Unit) {
                     )
                     style.addLayer(
                         CircleLayer("target-halo", "target").withProperties(
-                            PropertyFactory.circleRadius(26f),
+                            PropertyFactory.circleRadius(30f),
                             PropertyFactory.circleColor("#D92D20"),
                             PropertyFactory.circleOpacity(0.15f),
                         ),
@@ -439,12 +424,13 @@ private fun resolveTarget(context: Context, id: String, events: List<BudEvent>):
             place = spot.place,
             isTag = false,
             withYou = latest?.isPresence == true,
+            connected = latest?.isPresence == true,
         )
     }
     val t = ItemStore.items(context).firstOrNull { it.id == id } ?: return null
     val lat = t.lat ?: return null
     val lng = t.lng ?: return null
-    return Target(t.label, lat, lng, t.accuracyM, t.fixTime, t.place, isTag = true, withYou = t.state == dev.krishnagurram.budguard.data.TagState.WITH_YOU)
+    return Target(t.label, lat, lng, t.accuracyM, t.fixTime, t.place, isTag = true, withYou = t.state == dev.krishnagurram.budguard.data.TagState.WITH_YOU, icon = t.icon)
 }
 
 private suspend fun refreshTag(context: Context, id: String) {

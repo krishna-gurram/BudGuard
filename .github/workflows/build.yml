@@ -32,6 +32,14 @@ jobs:
       - name: Build signed APK
         run: gradle :app:assembleRelease --stacktrace
 
+      # Renders key screens to PNGs (attached to the release) so the design can be reviewed
+      # without a phone. Never blocks the APK.
+      - name: Screenshots
+        continue-on-error: true
+        run: |
+          gradle :app:testReleaseUnitTest -Pshots --tests '*ScreenshotShots*' --stacktrace
+          mkdir -p out && cd app/build/shots && zip -q ../../../out/screenshots.zip *.png
+
       - name: Name the APK
         run: |
           base=$(grep -oP 'versionName = "\K[0-9]+\.[0-9]+' app/build.gradle.kts | head -1)
@@ -45,5 +53,7 @@ jobs:
           tag_name: v${{ env.VERSION }}
           name: BudGuard v${{ env.VERSION }}
           prerelease: true
-          files: out/*.apk
+          files: |
+            out/*.apk
+            out/screenshots.zip
           body: Install on the Fold, then open Diagnostics and tap Copy report.

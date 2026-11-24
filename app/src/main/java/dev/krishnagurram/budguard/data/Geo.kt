@@ -5,6 +5,9 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
+/** What the tracking screen should show, like Find My's states. */
+enum class TrackMode { WITH_YOU, NEARBY, AWAY, LOCATING }
+
 /** Small geometry for the live tracking screen. Pure, unit-tested. */
 object Geo {
 
@@ -64,5 +67,22 @@ object Geo {
         if (previous == null) return reading
         val delta = turnDeg(reading, previous)
         return ((previous + alpha * delta) % 360 + 360) % 360
+    }
+
+    /**
+     * With you: the buds are connected ([certain]), or the watcher last saw the tag with you
+     * and its spot is still roughly where you are. A tag that's with you is reported at your
+     * phone's own position, so chasing it on a map would just chase you.
+     * Nearby: within shouting distance once both GPS errors are allowed for. Away: go get it.
+     */
+    fun trackMode(certain: Boolean, flaggedWithYou: Boolean, distanceM: Double?, itemAccuracyM: Double?, phoneAccuracyM: Double?): TrackMode {
+        if (certain) return TrackMode.WITH_YOU
+        val d = distanceM ?: return if (flaggedWithYou) TrackMode.WITH_YOU else TrackMode.LOCATING
+        val near = CLOSE_M + (itemAccuracyM ?: 0.0).coerceAtMost(150.0) + (phoneAccuracyM ?: 0.0).coerceAtMost(50.0)
+        return when {
+            flaggedWithYou && d <= near + 150 -> TrackMode.WITH_YOU
+            d <= near -> TrackMode.NEARBY
+            else -> TrackMode.AWAY
+        }
     }
 }

@@ -16,7 +16,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = runNumber
-        versionName = "2.2.$runNumber"
+        versionName = "2.3.$runNumber"
 
         // The Fold 8 is arm64; dropping other CPU types cuts the APK from ~65 MB to ~25 MB.
         ndk { abiFilters += "arm64-v8a" }
@@ -53,6 +53,10 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -79,4 +83,10 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+}
+
+// Screenshot renders run only when asked (-Pshots), so they never block an APK.
+tasks.withType<Test>().configureEach {
+    if (!project.hasProperty("shots")) exclude("**/shots/**")
 }
