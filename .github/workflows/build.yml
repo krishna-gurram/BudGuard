@@ -20,9 +20,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # No Gradle cache: it counts against the free 0.5 GB Actions storage.
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+          cache-disabled: true
 
       - name: Unit tests
         run: gradle :app:testReleaseUnitTest --stacktrace
@@ -36,11 +38,6 @@ jobs:
           echo "VERSION=$base.${{ github.run_number }}" >> "$GITHUB_ENV"
           mkdir -p out
           cp app/build/outputs/apk/release/app-release.apk "out/BudGuard-v$base.${{ github.run_number }}.apk"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: BudGuard-v${{ env.VERSION }}
-          path: out/*.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
