@@ -89,4 +89,7 @@ dependencies {
 // Screenshot renders run only when asked (-Pshots), so they never block an APK.
 tasks.withType<Test>().configureEach {
     if (!project.hasProperty("shots")) exclude("**/shots/**")
+    // Robolectric fetches Android itself at test time; Google's Maven Central mirror is reliable from CI.
+    systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2")
+    testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
