@@ -65,6 +65,7 @@ fun HomeScreen(
     onSetup: () -> Unit,
     onTimeline: () -> Unit,
     onFind: () -> Unit,
+    onTrack: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -187,9 +188,7 @@ fun HomeScreen(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tile("Directions", Icons.Filled.Place, primary = true, enabled = lastSeen != null) {
-                    lastSeen?.let { navigateTo(context, it.lat!!, it.lng!!) }
-                }
+                Tile("Track", Icons.Filled.Place, primary = true, enabled = lastSeen != null, onClick = onTrack)
                 Tile(if (playing) "Stop sound" else "Play sound", Icons.Filled.PlayArrow, primary = false) {
                     scope.launch {
                         if (playing) {

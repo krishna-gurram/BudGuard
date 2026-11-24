@@ -59,7 +59,7 @@ import dev.krishnagurram.budguard.tracking.CompanionLink
 import dev.krishnagurram.budguard.tracking.Driving
 import dev.krishnagurram.budguard.tracking.LeftBehind
 
-enum class Screen { Buds, Items, ItemDetail, Timeline, Find, Alerts, Diagnostics, Setup, TagLab }
+enum class Screen { Buds, Items, ItemDetail, Track, Timeline, Find, Alerts, Diagnostics, Setup, TagLab }
 
 class MainActivity : ComponentActivity() {
 
@@ -91,6 +91,8 @@ private fun AppRoot() {
 
     var screen by rememberSaveable { mutableStateOf(if (status.coreReady) Screen.Buds else Screen.Setup) }
     var openItem by rememberSaveable { mutableStateOf("") }
+    var trackId by rememberSaveable { mutableStateOf(TRACK_BUDS) }
+    var trackBack by rememberSaveable { mutableStateOf(Screen.Buds) }
 
     // While the app is open, also listen for battery reports.
     DisposableEffect(Unit) {
@@ -121,6 +123,18 @@ private fun AppRoot() {
                 onSetup = { screen = Screen.Setup },
                 onTimeline = { screen = Screen.Timeline },
                 onFind = { screen = Screen.Find },
+                onTrack = {
+                    trackId = TRACK_BUDS
+                    trackBack = Screen.Buds
+                    screen = Screen.Track
+                },
+            )
+            Screen.Track -> TrackScreen(
+                modifier,
+                trackId,
+                events,
+                onBack = { screen = trackBack },
+                onNearby = { screen = Screen.Find },
             )
             Screen.Items -> ItemsScreen(
                 modifier,
@@ -131,7 +145,11 @@ private fun AppRoot() {
                     screen = Screen.ItemDetail
                 },
             )
-            Screen.ItemDetail -> ItemDetailScreen(modifier, openItem, onBack = { screen = Screen.Items })
+            Screen.ItemDetail -> ItemDetailScreen(modifier, openItem, onBack = { screen = Screen.Items }, onTrack = { id ->
+                trackId = id
+                trackBack = Screen.ItemDetail
+                screen = Screen.Track
+            })
             Screen.Timeline -> TimelineScreen(modifier.statusBarsPadding(), events)
             Screen.Find -> FinderScreen(modifier.statusBarsPadding())
             Screen.Alerts -> AlertsScreen(
@@ -157,7 +175,7 @@ private fun AppRoot() {
             )
         }
 
-        if (screen != Screen.Setup) {
+        if (screen != Screen.Setup && screen != Screen.Track) {
             PillNav(
                 current = screen,
                 dark = dark,

@@ -313,7 +313,7 @@ private fun ItemRow(icon: ImageVector, tint: Color, title: String, line: Pair<St
 }
 
 @Composable
-fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit) {
+fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit, onTrack: (String) -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var version by remember { mutableIntStateOf(0) }
@@ -389,12 +389,12 @@ fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { navigateTo(context, item.lat ?: return@Button, item.lng ?: return@Button) },
+                    onClick = { onTrack(item.id) },
                     enabled = item.hasFix,
                     colors = blueButton,
                     shape = RoundedCornerShape(50),
                     modifier = Modifier.weight(1f),
-                ) { Text("Directions") }
+                ) { Text("Track live") }
                 Button(onClick = { ring(!ringing) }, colors = softButton, shape = RoundedCornerShape(50), modifier = Modifier.weight(1f)) {
                     Text(if (ringing) "Stop ring" else "Ring")
                 }
