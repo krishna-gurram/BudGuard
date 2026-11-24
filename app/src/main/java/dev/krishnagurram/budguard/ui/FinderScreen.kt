@@ -106,11 +106,12 @@ fun FinderScreen(modifier: Modifier) {
 
     val fresh = state.rssi != null && now - state.lastSeen < 8_000
     val headline = when {
-        !canScan -> "Allow nearby devices"
+        !canScan -> "–"
         fresh -> state.meters?.let { formatMeters(it) } ?: "Nearby"
         else -> "–"
     }
     val trendText = when {
+        !canScan -> "Allow nearby devices to start"
         !fresh -> "Open the case or take the buds out"
         state.trend == Trend.WARMER -> "Warmer, keep going"
         state.trend == Trend.COLDER -> "Colder, turn around"

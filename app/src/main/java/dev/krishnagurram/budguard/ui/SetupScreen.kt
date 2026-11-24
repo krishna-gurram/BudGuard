@@ -106,9 +106,9 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
         Card {
             StepHeader(3, status.budsAddress != null, "Pick your buds")
             if (!status.bluetooth) {
-                Text("Finish step 1 first.", fontSize = 14.sp, color = Palette.Quiet)
+                Text("Finish step 1 first.", style = Type.Sub.copy(fontSize = 14.sp), modifier = Modifier.padding(start = 46.dp))
             } else if (bonded.isEmpty()) {
-                Text("No paired devices found. Pair the buds in Bluetooth settings first.", fontSize = 14.sp, color = Palette.Quiet)
+                Text("No paired devices found. Pair the buds in Bluetooth settings first.", style = Type.Sub.copy(fontSize = 14.sp), modifier = Modifier.padding(start = 46.dp))
             } else {
                 Text(
                     "This is your phone's paired list. Wear the new buds, then pick the one marked Connected now.",

@@ -67,6 +67,7 @@ import dev.krishnagurram.budguard.tracking.EventRecorder
 import kotlinx.coroutines.launch
 
 @Composable
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> Unit, onTagLab: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { Prefs(context) }
@@ -155,6 +156,21 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
                         valueRange = 75f..500f,
                         colors = SliderDefaults.colors(thumbColor = Palette.Blue, activeTrackColor = Palette.Blue, inactiveTrackColor = Palette.GreySoft),
                         modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                        thumb = {
+                            Box(
+                                Modifier.size(22.dp).shadow(3.dp, CircleShape).clip(CircleShape).background(Color.White)
+                                    .border(2.dp, Palette.Blue, CircleShape),
+                            )
+                        },
+                        track = { state ->
+                            SliderDefaults.Track(
+                                sliderState = state,
+                                modifier = Modifier.height(6.dp),
+                                colors = SliderDefaults.colors(activeTrackColor = Palette.Blue, inactiveTrackColor = Palette.GreySoft),
+                                drawStopIndicator = null,
+                                thumbTrackGapSize = 0.dp,
+                            )
+                        },
                     )
                     Text(dev.krishnagurram.budguard.data.Geo.distanceText(radius.toDouble()), style = Type.Small.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
                 }
