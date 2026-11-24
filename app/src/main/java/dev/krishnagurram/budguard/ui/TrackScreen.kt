@@ -1,5 +1,13 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.GeomagneticField
@@ -333,6 +341,10 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
 @SuppressLint("MissingPermission")
 @Composable
 private fun TrackMap(onReady: (MapLibreMap) -> Unit, onUserPan: () -> Unit) {
+    if (!LocalMapsLive.current) {
+        FakeMap(Modifier.fillMaxSize())
+        return
+    }
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember {

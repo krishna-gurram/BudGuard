@@ -1,5 +1,12 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +21,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -187,26 +195,26 @@ private fun AppRoot() {
 }
 
 @Composable
-private fun PillNav(current: Screen, dark: Boolean, onSelect: (Screen) -> Unit, modifier: Modifier) {
+internal fun PillNav(current: Screen, dark: Boolean, onSelect: (Screen) -> Unit, modifier: Modifier) {
     val bg = if (dark) Color(0xFF1A1D24) else Color.White
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .shadow(14.dp, RoundedCornerShape(32.dp))
-            .clip(RoundedCornerShape(32.dp))
+            .height(68.dp)
+            .shadow(18.dp, RoundedCornerShape(34.dp))
+            .clip(RoundedCornerShape(34.dp))
             .background(bg)
             .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
-        PillItem("Buds", Icons.Filled.Home, current == Screen.Buds, dark) { onSelect(Screen.Buds) }
-        PillItem("Items", Icons.Filled.Place, current == Screen.Items || current == Screen.ItemDetail, dark) { onSelect(Screen.Items) }
-        PillItem("Timeline", Icons.Filled.List, current == Screen.Timeline, dark) { onSelect(Screen.Timeline) }
-        PillItem("Find", Icons.Filled.Search, current == Screen.Find, dark) { onSelect(Screen.Find) }
+        PillItem("Buds", Sym.Earbuds, current == Screen.Buds, dark) { onSelect(Screen.Buds) }
+        PillItem("Items", Sym.GridView, current == Screen.Items || current == Screen.ItemDetail, dark) { onSelect(Screen.Items) }
+        PillItem("Timeline", Sym.History, current == Screen.Timeline, dark) { onSelect(Screen.Timeline) }
+        PillItem("Find", Sym.Radar, current == Screen.Find, dark) { onSelect(Screen.Find) }
         PillItem(
             "Alerts",
-            Icons.Filled.Notifications,
+            Sym.Notifications,
             current == Screen.Alerts || current == Screen.Diagnostics || current == Screen.TagLab,
             dark,
         ) { onSelect(Screen.Alerts) }
@@ -227,19 +235,18 @@ private fun androidx.compose.foundation.layout.RowScope.PillItem(
     Column(
         modifier = Modifier
             .weight(1f)
-            .height(52.dp)
-            .clip(RoundedCornerShape(26.dp))
+            .height(54.dp)
+            .clip(RoundedCornerShape(27.dp))
             .background(if (selected) selectedBg else Color.Transparent)
             .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (selected) selectedFg else idle, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = null, tint = if (selected) selectedFg else idle, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             label,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-            color = if (selected) selectedFg else idle,
+            style = Type.Small.copy(fontSize = 11.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = if (selected) selectedFg else idle),
         )
     }
 }

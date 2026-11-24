@@ -1,5 +1,12 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -81,11 +88,18 @@ private const val STYLE = "https://tiles.openfreemap.org/styles/liberty"
 data class MapPin(val name: String, val lat: Double, val lng: Double, val color: String)
 
 fun iconFor(kind: String): ImageVector = when (kind) {
-    "wallet" -> Icons.Filled.AccountBox
-    "keys" -> Icons.Filled.Lock
-    "bag" -> Icons.Filled.ShoppingCart
-    "case" -> Icons.Filled.Star
-    else -> Icons.Filled.Place
+    "wallet" -> Sym.AccountBalanceWallet
+    "keys" -> Sym.Key
+    "bag" -> Sym.Backpack
+    "case" -> Sym.Earbuds
+    else -> Sym.Sell
+}
+
+fun stateColors(t: TagItem): Pair<Color, Color> = when (t.state) {
+    TagState.WITH_YOU -> Palette.Green to Palette.GreenSoft
+    TagState.LEFT_SAFE -> Palette.Blue to Palette.BlueSoft
+    TagState.LEFT_BEHIND -> Palette.Red to Palette.RedSoft
+    TagState.UNKNOWN -> Palette.Orange to Palette.OrangeSoft
 }
 
 fun stateText(t: TagItem, now: Long): Pair<String, Color> = when (t.state) {
@@ -98,6 +112,20 @@ fun stateText(t: TagItem, now: Long): Pair<String, Color> = when (t.state) {
 /** Several items on one map: dots from rows, fitted to show them all. */
 @Composable
 fun ItemsMap(pins: List<MapPin>, modifier: Modifier) {
+    if (!LocalMapsLive.current) {
+        Box(modifier) {
+            FakeMap(Modifier.fillMaxSize())
+            pins.forEachIndexed { i, p ->
+                val c = Color(android.graphics.Color.parseColor(p.color))
+                Box(
+                    Modifier.align(Alignment.TopStart).padding(start = (70 + i * 110).dp, top = (90 + (i % 2) * 70).dp).size(36.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape).background(Color.White).padding(4.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape).background(c),
+                )
+            }
+        }
+        return
+    }
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapView = remember {
@@ -226,41 +254,44 @@ fun ItemsScreen(modifier: Modifier, events: List<BudEvent>, onBuds: () -> Unit, 
         }
     }
 
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().background(Palette.Bg)) {
         if (pins.isNotEmpty()) {
-            ItemsMap(pins, Modifier.fillMaxWidth().height(330.dp))
+            ItemsMap(pins, Modifier.fillMaxWidth().height(400.dp))
         } else {
-            Box(Modifier.fillMaxWidth().height(330.dp).background(Color(0xFFE7EAEE)), contentAlignment = Alignment.Center) {
-                Text("Your items appear here once BudGuard has a spot for them", fontSize = 14.sp, color = Palette.Quiet)
-            }
+            Box(Modifier.fillMaxWidth().height(400.dp)) { FakeMap(Modifier.fillMaxSize()) }
         }
         Column(
-            Modifier.fillMaxSize().padding(top = 290.dp).clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+            Modifier.fillMaxSize().padding(top = 340.dp)
+                .shadow(18.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .background(Palette.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(Modifier.padding(top = 20.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Items", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink, modifier = Modifier.weight(1f))
-                if (signedIn) TextButton(onClick = { refresh() }) { Text("Refresh") }
+            SheetHandle()
+            Row(Modifier.padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Items", style = Type.Title, modifier = Modifier.weight(1f))
+                if (signedIn) PillButton("Refresh", style = PillStyle.Soft, modifier = Modifier.height(40.dp)) { refresh() }
             }
-            note?.let { Text(it, fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.padding(horizontal = 4.dp)) }
+            note?.let { Text(it, style = Type.Sub, modifier = Modifier.padding(horizontal = 6.dp)) }
 
             if (!signedIn) {
                 Card {
-                    Text("Add your SmartTags", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-                    Text(
-                        "Sign in to Samsung once. BudGuard then reads where your tags are and warns you when one is left behind.",
-                        fontSize = 14.sp,
-                        color = Palette.Quiet,
-                    )
-                    Button(onClick = { signingIn = true }, colors = blueButton, shape = RoundedCornerShape(50)) { Text("Sign in to Samsung") }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconTile(Sym.Cloud, Palette.Blue)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Add your SmartTags", style = Type.Row)
+                            Text("Sign in to Samsung once. BudGuard then knows where your tags are and warns you when one is left behind.", style = Type.Sub)
+                        }
+                    }
+                    PillButton("Sign in to Samsung", Modifier.fillMaxWidth()) { signingIn = true }
                 }
             }
 
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
+            Group {
                 ItemRow(
-                    icon = Icons.Filled.Place,
-                    tint = Palette.Blue,
+                    icon = Sym.Earbuds,
+                    colors = if (budsWithYou || budsLatest == null) Palette.Blue to Palette.BlueSoft else Palette.Red to Palette.RedSoft,
                     title = "Galaxy Buds",
                     line = when {
                         budsLatest == null -> "No events yet" to Palette.Quiet
@@ -271,45 +302,42 @@ fun ItemsScreen(modifier: Modifier, events: List<BudEvent>, onBuds: () -> Unit, 
                     onClick = onBuds,
                 )
                 items.forEach { t ->
-                    Box(Modifier.fillMaxWidth().padding(start = 74.dp).height(1.dp).background(Palette.Rule))
+                    RowDivider(78.dp)
                     ItemRow(
                         icon = iconFor(t.icon),
-                        tint = if (t.state == TagState.LEFT_BEHIND) Palette.Red else Palette.Orange,
+                        colors = stateColors(t),
                         title = t.label,
                         line = stateText(t, now),
                         detail = listOfNotNull(
-                            t.battery?.let { "tag battery $it%" },
-                            if (!t.alertsOn) "alerts off" else null,
+                            t.battery?.let { "Tag battery $it%" },
+                            if (!t.alertsOn) "Alerts off" else null,
                         ).joinToString(" · ").ifBlank { null },
                         onClick = { onOpen(t.id) },
                     )
                 }
             }
             if (signedIn && items.isEmpty()) {
-                Text("No tags yet. Tap Refresh after a few seconds.", fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.padding(horizontal = 8.dp))
+                Text("No tags yet. Tap Refresh in a few seconds.", style = Type.Sub, modifier = Modifier.padding(horizontal = 8.dp))
             }
-            Spacer(Modifier.height(110.dp))
+            Spacer(Modifier.height(120.dp))
         }
     }
 }
 
 @Composable
-private fun ItemRow(icon: ImageVector, tint: Color, title: String, line: Pair<String, Color>, detail: String?, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(tint.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = tint)
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-            Text(line.first, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = line.second)
-            if (detail != null) Text(detail, fontSize = 12.sp, color = Palette.Quiet)
-        }
-        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.Quiet)
-    }
+private fun ItemRow(icon: ImageVector, colors: Pair<Color, Color>, title: String, line: Pair<String, Color>, detail: String?, onClick: () -> Unit) {
+    ListRow(
+        title = title,
+        detail = line.first,
+        detailColor = line.second,
+        extra = detail,
+        leading = {
+            Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(colors.second), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = colors.first, modifier = Modifier.size(26.dp))
+            }
+        },
+        onClick = onClick,
+    ) { Chevron() }
 }
 
 @Composable
@@ -324,9 +352,9 @@ fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit, onTrack
     val now = System.currentTimeMillis()
 
     if (item == null) {
-        Column(modifier.padding(16.dp)) {
-            TextButton(onClick = onBack) { Text("‹ Items") }
-            Text("This item is gone. Refresh Items.", color = Palette.Quiet)
+        Column(modifier.statusBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            MapButton(Sym.ArrowBack, "Back to items", onClick = onBack)
+            Text("This item is gone. Refresh Items.", style = Type.Body)
         }
         return
     }
@@ -347,120 +375,111 @@ fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit, onTrack
         }
     }
 
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box {
-            val lat = item.lat
-            val lng = item.lng
-            if (lat != null && lng != null) {
-                BudsMap(lat, lng, item.accuracyM?.toFloat(), Modifier.fillMaxWidth().height(280.dp), alert = item.state == TagState.LEFT_BEHIND)
-            } else {
-                Box(Modifier.fillMaxWidth().height(280.dp).background(Color(0xFFE7EAEE)))
-            }
-            TextButton(
-                onClick = onBack,
-                modifier = Modifier.statusBarsPadding().padding(8.dp).clip(RoundedCornerShape(50)).background(Color.White),
-            ) { Text("‹ Items") }
+    val (accent, accentSoft) = stateColors(item)
+    Box(modifier.fillMaxSize().background(Palette.Bg)) {
+        val lat = item.lat
+        val lng = item.lng
+        if (lat != null && lng != null) {
+            BudsMap(lat, lng, item.accuracyM?.toFloat(), Modifier.fillMaxWidth().height(380.dp), alert = item.state == TagState.LEFT_BEHIND, icon = iconFor(item.icon))
+        } else {
+            FakeMap(Modifier.fillMaxWidth().height(380.dp))
         }
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Card), contentAlignment = Alignment.Center) {
-                    Icon(iconFor(item.icon), contentDescription = null, tint = Palette.Ink, modifier = Modifier.size(30.dp))
+        Row(Modifier.statusBarsPadding().padding(16.dp)) {
+            MapButton(Sym.ArrowBack, "Back to items", onClick = onBack)
+        }
+
+        Column(
+            Modifier.fillMaxSize().padding(top = 310.dp)
+                .shadow(18.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .background(Palette.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SheetHandle()
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+                Box(Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(accentSoft), contentAlignment = Alignment.Center) {
+                    Icon(iconFor(item.icon), contentDescription = null, tint = accent, modifier = Modifier.size(30.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column {
-                    Text(item.label, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
+                    Text(item.label, style = Type.Title)
                     val (text, color) = stateText(item, now)
-                    Text(text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = color)
+                    Text(text, style = Type.Sub.copy(fontSize = 14.sp, color = color, fontWeight = FontWeight.SemiBold))
                 }
             }
 
-            Card {
-                Text(
-                    listOfNotNull(
+            Group {
+                ListRow(
+                    title = listOfNotNull(
                         item.place ?: if (item.hasFix) String.format(java.util.Locale.US, "%.5f, %.5f", item.lat, item.lng) else "No spot yet",
-                        if (item.fixTime > 0) "seen ${Format.ago(now, item.fixTime)}" else null,
-                        item.accuracyM?.let { dev.krishnagurram.budguard.data.Geo.accuracyText(it) },
+                        if (item.fixTime > 0) Format.clock(item.fixTime) else null,
                     ).joinToString(" · "),
-                    fontSize = 15.sp,
-                    color = Palette.Ink,
+                    detail = listOfNotNull(
+                        if (item.fixTime > 0) "Reported ${Format.ago(now, item.fixTime)}" else null,
+                        item.accuracyM?.let { dev.krishnagurram.budguard.data.Geo.accuracyText(it) },
+                    ).joinToString(" · ").ifBlank { null },
+                    leading = { IconDot(Sym.LocationOn, Palette.Blue, Palette.BlueSoft, size = 40) },
                 )
-                Text("Tag battery ${item.battery?.let { "$it%" } ?: "unknown"} · Samsung name: ${item.samsungName}", fontSize = 13.sp, color = Palette.Quiet)
+                RowDivider(74.dp)
+                ListRow(
+                    title = "Tag battery ${item.battery?.let { "$it%" } ?: "unknown"}",
+                    detail = "Samsung name: ${item.samsungName}",
+                    leading = { IconDot(Sym.BatteryFull, if ((item.battery ?: 100) <= 15) Palette.Orange else Palette.Green, if ((item.battery ?: 100) <= 15) Palette.OrangeSoft else Palette.GreenSoft, size = 40) },
+                )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { onTrack(item.id) },
-                    enabled = item.hasFix,
-                    colors = blueButton,
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                ) { Text("Track live") }
-                Button(onClick = { ring(!ringing) }, colors = softButton, shape = RoundedCornerShape(50), modifier = Modifier.weight(1f)) {
-                    Text(if (ringing) "Stop ring" else "Ring")
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            note = "Checking with Samsung…"
-                            note = TagWatch.check(context, "item refresh")
-                            version++
-                        }
-                    },
-                    colors = softButton,
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.weight(1f),
-                ) { Text("Refresh") }
-                Button(onClick = { openSamsungFind(context) }, colors = softButton, shape = RoundedCornerShape(50), modifier = Modifier.weight(1f)) {
-                    Text("Arrow & Lost mode")
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActionTile("Track live", Sym.NearMe, primary = true, enabled = item.hasFix) { onTrack(item.id) }
+                ActionTile(if (ringing) "Stop" else "Ring tag", Sym.VolumeUp, active = ringing) { ring(!ringing) }
+                ActionTile("Arrow", Sym.Explore) { openSamsungFind(context) }
+                ActionTile("Refresh", Sym.Refresh) {
+                    scope.launch {
+                        note = "Checking with Samsung…"
+                        note = TagWatch.check(context, "item refresh")
+                        version++
+                    }
                 }
             }
             if (item.state == TagState.LEFT_BEHIND) {
-                Button(
-                    onClick = { TagWatch.haveIt(context, item.id); version++ },
-                    colors = blueButton,
-                    shape = RoundedCornerShape(50),
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("I have it") }
+                PillButton("I have it", Modifier.fillMaxWidth()) { TagWatch.haveIt(context, item.id); version++ }
             }
-            note?.let { Text(it, fontSize = 13.sp, color = Palette.Quiet) }
+            note?.let { Text(it, style = Type.Sub, modifier = Modifier.padding(horizontal = 8.dp)) }
 
-            SectionLabel("Settings")
-            Card {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Notify when left behind", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-                        Text("Never at your safe places", fontSize = 13.sp, color = Palette.Quiet)
-                    }
-                    Switch(
-                        checked = item.alertsOn,
-                        onCheckedChange = { on -> ItemStore.update(context, id) { it.copy(alertsOn = on) }; version++ },
-                        colors = SwitchDefaults.colors(checkedTrackColor = Palette.Blue, checkedThumbColor = Color.White),
-                    )
+            Group {
+                ListRow(
+                    title = "Notify when left behind",
+                    detail = "Never at your safe places",
+                    leading = { IconTile(Sym.DirectionsWalk, Palette.Red) },
+                ) {
+                    Toggle(item.alertsOn) { on -> ItemStore.update(context, id) { it.copy(alertsOn = on) }; version++ }
                 }
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    listOf("wallet" to "Wallet", "keys" to "Keys", "bag" to "Bag", "case" to "Case", "tag" to "Other").forEach { (kind, label) ->
-                        val selected = item.icon == kind
-                        Text(
-                            label,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (selected) Color.White else Palette.Ink,
-                            modifier = Modifier.clip(RoundedCornerShape(50)).background(if (selected) Palette.Ink else Palette.Bg)
-                                .clickable { ItemStore.update(context, id) { it.copy(icon = kind) }; version++ }
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                        )
-                    }
-                }
-                Button(
-                    onClick = { ItemStore.update(context, id) { it.copy(label = name.trim().ifBlank { it.samsungName }) }; version++ },
-                    colors = softButton,
-                    shape = RoundedCornerShape(50),
-                ) { Text("Save name") }
             }
-            Spacer(Modifier.height(110.dp))
+
+            SectionLabel("Name and icon")
+            Card {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                    listOf("wallet" to "Wallet", "keys" to "Keys", "bag" to "Bag", "case" to "Buds case", "tag" to "Other").forEach { (kind, label) ->
+                        Chip(label, item.icon == kind, idle = Palette.GreySoft) { ItemStore.update(context, id) { it.copy(icon = kind) }; version++ }
+                    }
+                }
+                PillButton("Save name", Modifier.fillMaxWidth(), style = PillStyle.Soft) {
+                    ItemStore.update(context, id) { it.copy(label = name.trim().ifBlank { it.samsungName }) }
+                    version++
+                }
+            }
+            Text(
+                "Arrow opens Samsung Find, which has the tag's UWB pointer and Lost mode.",
+                style = Type.Sub.copy(fontSize = 12.sp),
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+            Spacer(Modifier.height(120.dp))
         }
     }
 }

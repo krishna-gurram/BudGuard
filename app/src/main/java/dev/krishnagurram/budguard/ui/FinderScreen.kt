@@ -1,5 +1,13 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Icon
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -8,6 +16,7 @@ import android.hardware.camera2.CameraManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,7 +108,7 @@ fun FinderScreen(modifier: Modifier) {
     val headline = when {
         !canScan -> "Allow nearby devices"
         fresh -> state.meters?.let { formatMeters(it) } ?: "Nearby"
-        else -> "No signal"
+        else -> "–"
     }
     val trendText = when {
         !fresh -> "Open the case or take the buds out"
@@ -116,35 +125,36 @@ fun FinderScreen(modifier: Modifier) {
     Column(
         modifier = modifier.fillMaxSize().background(Dark.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Spacer(Modifier.height(40.dp))
-        Text(prefs.budsName ?: "Your buds", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Dark.Ink)
-        Text(
-            if (state.scanning) "Searching nearby · walk slowly" else state.error ?: "Not searching",
-            fontSize = 14.sp,
-            color = Dark.Quiet,
-        )
-
-        Box(Modifier.size(240.dp).clip(CircleShape).background(Dark.Surface), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(170.dp).clip(CircleShape).background(orbColor.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(100.dp).clip(CircleShape).background(orbColor), contentAlignment = Alignment.Center) {
-                    Text(
-                        if (fresh) "${state.rssi?.toInt()}" else "–",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.weight(1f))
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).background(Dark.Surface).padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(if (state.scanning) Dark.Blue else Dark.Quiet))
+                Spacer(Modifier.width(7.dp))
+                Text(if (state.scanning) "Searching" else "Paused", style = Type.Small.copy(color = Dark.BlueText))
             }
         }
+        Spacer(Modifier.height(18.dp))
+        Text(prefs.budsName ?: "Your buds", style = Type.Title.copy(color = Dark.Ink))
+        Spacer(Modifier.height(6.dp))
+        Text(
+            state.error ?: "Keep the phone level and walk slowly",
+            style = Type.Sub.copy(color = Dark.Quiet, fontSize = 14.sp),
+            textAlign = TextAlign.Center,
+        )
 
-        Text(headline, fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, color = Dark.Ink)
-        Text(trendText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Dark.BlueText, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+        Radar(fresh = fresh, rssi = state.rssi, colder = state.trend == Trend.COLDER)
+        Spacer(Modifier.height(20.dp))
 
-        SignalBars(state.history, fresh)
+        Text(headline, style = Type.Display.copy(fontSize = 56.sp, color = Dark.Ink))
+        Text(trendText, style = Type.Row.copy(color = if (fresh && state.trend == Trend.COLDER) Color(0xFF9AA6BF) else Dark.BlueText), textAlign = TextAlign.Center)
 
         if (!canScan) {
+            Spacer(Modifier.height(16.dp))
             Button(
                 onClick = { scanPermission.launch(Manifest.permission.BLUETOOTH_SCAN) },
                 colors = ButtonDefaults.buttonColors(containerColor = Dark.Blue),
@@ -152,12 +162,13 @@ fun FinderScreen(modifier: Modifier) {
             ) { Text("Allow nearby devices") }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.Top) {
-            RoundAction(if (torch) "Light on" else "Flashlight", small = true, active = torch) {
+        Spacer(Modifier.height(28.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(30.dp), verticalAlignment = Alignment.Bottom) {
+            RoundAction(if (torch) "Light on" else "Flashlight", Sym.FlashlightOn, big = false, active = torch) {
                 torch = !torch
                 setTorch(context, torch)
             }
-            RoundAction(if (playing) "Stop sound" else "Play sound", small = false, active = playing) {
+            RoundAction(if (playing) "Stop sound" else "Play sound", Sym.VolumeUp, big = true, active = true) {
                 scope.launch {
                     if (playing) {
                         soundStatus = BudsSound.stop()
@@ -169,47 +180,59 @@ fun FinderScreen(modifier: Modifier) {
                     }
                 }
             }
-            RoundAction("Case tag", small = true, active = false) { openSamsungFind(context) }
+            RoundAction("Case tag", Sym.Sell, big = false, active = false) { openSamsungFind(context) }
         }
 
+        Spacer(Modifier.height(22.dp))
         Text(
-            soundStatus ?: "Play sound works when the buds are out of the case. Closed case? Tap Case tag to follow the SmartTag2.",
-            fontSize = 13.sp,
-            color = Dark.Quiet,
+            soundStatus ?: "No signal? The lid may be closed. Tap Case tag to follow the SmartTag instead.",
+            style = Type.Sub.copy(color = Dark.Quiet),
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(110.dp))
+        Spacer(Modifier.height(120.dp))
     }
 }
 
+/** Rings with the buds at the centre; a dot moves inward as the signal gets stronger. */
 @Composable
-private fun SignalBars(history: List<Int>, fresh: Boolean) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.height(40.dp)) {
-        val bars = if (history.isEmpty()) List(8) { -100 } else history.takeLast(8)
-        bars.forEach { rssi ->
-            val h = ((rssi + 100).coerceIn(0, 60) / 60f * 34 + 6).dp
-            Box(
-                Modifier.width(8.dp).height(h).clip(RoundedCornerShape(4.dp))
-                    .background(if (fresh) Dark.Blue else Dark.Raised),
+private fun Radar(fresh: Boolean, rssi: Double?, colder: Boolean) {
+    val accent = if (!fresh) Dark.Raised else if (colder) Color(0xFF6B7A99) else Dark.Blue
+    Box(Modifier.size(270.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val c = center
+            val r = size.minDimension / 2
+            drawCircle(Color(0xFF151922), radius = r, center = c)
+            drawCircle(Color(0xFF232A36), radius = r, center = c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            drawCircle(Color(0xFF232A36), radius = r * 0.66f, center = c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            drawCircle(
+                androidx.compose.ui.graphics.Brush.radialGradient(listOf(accent.copy(alpha = 0.45f), accent.copy(alpha = 0f)), center = c, radius = r * 0.6f),
+                radius = r * 0.6f,
+                center = c,
             )
+            drawCircle(accent.copy(alpha = 0.5f), radius = r * 0.42f, center = c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f.dp.toPx()))
+            if (fresh && rssi != null) {
+                // -40 dBm sits near the middle, -95 at the edge.
+                val t = ((-rssi - 40) / 55.0).coerceIn(0.0, 1.0).toFloat()
+                val dist = r * (0.3f + 0.65f * t)
+                drawCircle(Color(0xFF8AB4FF), radius = 7.dp.toPx(), center = androidx.compose.ui.geometry.Offset(c.x, c.y - dist))
+            }
+        }
+        Box(Modifier.size(80.dp).clip(CircleShape).background(accent), contentAlignment = Alignment.Center) {
+            androidx.compose.material3.Icon(Sym.Earbuds, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
         }
     }
 }
 
 @Composable
-private fun RoundAction(label: String, small: Boolean, active: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Spacer(Modifier.height(if (small) 12.dp else 0.dp))
-        Button(
-            onClick = onClick,
-            shape = CircleShape,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (active || !small) Dark.Blue else Dark.Surface,
-                contentColor = Color.White,
-            ),
-            modifier = Modifier.size(if (small) 56.dp else 80.dp),
-        ) {}
-        Text(label, fontSize = if (small) 12.sp else 13.sp, color = if (small) Dark.Quiet else Dark.Ink, fontWeight = if (small) FontWeight.Normal else FontWeight.Bold)
+private fun RoundAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, big: Boolean, active: Boolean, onClick: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier.size(if (big) 84.dp else 60.dp).clip(CircleShape).background(if (active) Dark.Blue else Dark.Surface).clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.material3.Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(if (big) 36.dp else 26.dp))
+        }
+        Text(label, style = Type.Small.copy(color = if (big) Dark.Ink else Dark.Quiet, fontWeight = if (big) FontWeight.Bold else FontWeight.Medium))
     }
 }
 

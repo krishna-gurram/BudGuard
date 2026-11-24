@@ -1,5 +1,12 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -105,163 +112,134 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
     }
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxSize().background(Palette.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenTitle("Alerts", "Your phone remembers, wherever you go")
 
+        // What an alert looks like, so the toggles below mean something.
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(20.dp).clip(RoundedCornerShape(6.dp)).background(Palette.Blue), contentAlignment = Alignment.Center) {
+                    Icon(Sym.Earbuds, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text("BudGuard · example", style = Type.Sub.copy(fontSize = 12.sp))
+            }
+            Text("You left your buds at the gym", style = Type.Row)
+            Text("Disconnected by the lockers 3 min ago.", style = Type.Sub.copy(fontSize = 14.sp))
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Directions", "Play sound", "Got them").forEach {
+                    Text(it, style = Type.Small.copy(fontSize = 13.sp), modifier = Modifier.weight(1f).clip(RoundedCornerShape(50)).background(Palette.GreySoft).padding(vertical = 10.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            }
+        }
+
         SectionLabel("Notify me when")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
-            ToggleRow(Icons.Filled.LocationOn, Palette.Red, "I walk away without them", "Anywhere, not just home", walkAway) {
+        Group {
+            ToggleRow(Sym.DirectionsWalk, Palette.Red, "I walk away without them", "Anywhere, not just home", walkAway) {
                 walkAway = it
                 prefs.leftBehindOn = it
             }
             if (walkAway) {
                 Row(
-                    Modifier.fillMaxWidth().padding(start = 66.dp, end = 18.dp, bottom = 8.dp),
+                    Modifier.fillMaxWidth().padding(start = 70.dp, end = 18.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Distance", fontSize = 13.sp, color = Palette.Quiet)
+                    Text("Distance", style = Type.Sub)
                     Slider(
                         value = radius,
                         onValueChange = { radius = (it / 25f).toInt() * 25f },
                         onValueChangeFinished = { prefs.radiusM = radius.toInt() },
                         valueRange = 75f..500f,
-                        colors = SliderDefaults.colors(thumbColor = Palette.Blue, activeTrackColor = Palette.Blue),
-                        modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                        colors = SliderDefaults.colors(thumbColor = Palette.Blue, activeTrackColor = Palette.Blue, inactiveTrackColor = Palette.GreySoft),
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                     )
-                    Text(dev.krishnagurram.budguard.data.Geo.distanceText(radius.toDouble()), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
+                    Text(dev.krishnagurram.budguard.data.Geo.distanceText(radius.toDouble()), style = Type.Small.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
                 }
             }
-            Divider()
-            ToggleRow(Icons.Filled.Warning, Palette.Orange, "Battery runs low", "Save the spot at 15% and 5%", battery) {
+            RowDivider()
+            ToggleRow(Sym.BatteryAlert, Palette.Orange, "Battery runs low", "Save the spot at 15% and 5%", battery) {
                 battery = it
                 prefs.batteryOn = it
             }
-            Divider()
-            ToggleRow(Icons.Filled.Send, Color(0xFF7A3FD1), "They drop off in a car", "Check the seat before you get out", moving) {
+            RowDivider()
+            ToggleRow(Sym.DirectionsCar, Palette.Purple, "They drop off in a car", "Check the seat before you get out", moving) {
                 moving = it
                 prefs.movingOn = it
             }
-            Divider()
-            ToggleRow(Icons.Filled.Refresh, Palette.Green, "They need charging", "Unseen 6 hours below 20%", charge) {
+            RowDivider()
+            ToggleRow(Sym.Bolt, Palette.Green, "They need charging", "Unseen 6 hours below 20%", charge) {
                 charge = it
                 prefs.chargeOn = it
             }
         }
 
         SectionLabel("Your tags")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
-            ToggleRow(Icons.Filled.Place, Palette.Red, "A tag is left behind", "Wallet and other SmartTags, via Samsung Find", tagAlerts) {
+        Group {
+            ToggleRow(Sym.Sell, Palette.Red, "A tag is left behind", "Wallet and other SmartTags, via Samsung Find", tagAlerts) {
                 tagAlerts = it
                 prefs.tagAlertsOn = it
             }
-            Divider()
-            ToggleRow(Icons.Filled.Warning, Palette.Orange, "Tag battery is low", "At 15%, once per coin cell", tagBattery) {
+            RowDivider()
+            ToggleRow(Sym.BatteryAlert, Palette.Orange, "Tag battery is low", "At 15%, once per coin cell", tagBattery) {
                 tagBattery = it
                 prefs.tagBatteryOn = it
             }
         }
 
         SectionLabel("Safe places · tags may stay here")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
+        Group {
             places.forEach { place ->
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                ListRow(
+                    title = place.name,
+                    detail = "${dev.krishnagurram.budguard.data.Geo.distanceText(place.radiusM.toDouble())} around",
+                    leading = { IconTile(if (place.name.contains("work", true) || place.name.contains("office", true)) Sym.Work else Sym.Home, Palette.Green) },
                 ) {
-                    IconTile(Icons.Filled.Home, Palette.Green)
-                    Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(place.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-                        Text("${dev.krishnagurram.budguard.data.Geo.distanceText(place.radiusM.toDouble())} around", fontSize = 13.sp, color = Palette.Quiet)
-                    }
-                    TextButton(onClick = {
-                        places = places - place
-                        ItemStore.saveSafePlaces(context, places)
-                    }) { Text("Remove") }
+                    Text(
+                        "Remove",
+                        style = Type.Small.copy(color = Palette.Red),
+                        modifier = Modifier.clip(RoundedCornerShape(50)).clickable {
+                            places = places - place
+                            ItemStore.saveSafePlaces(context, places)
+                        }.padding(horizontal = 10.dp, vertical = 8.dp),
+                    )
                 }
-                Divider()
+                RowDivider()
             }
-            Row(
-                Modifier.fillMaxWidth().clickable { naming = true }.padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconTile(Icons.Filled.Add, Palette.Blue)
-                Spacer(Modifier.width(14.dp))
-                Text(placeNote ?: "Add where you are now", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Blue)
-            }
+            ListRow(
+                title = placeNote ?: "Add where you are now",
+                leading = { IconDot(Sym.Add, Palette.Blue, Palette.BlueSoft, size = 36) },
+                onClick = { naming = true },
+            )
         }
 
         SectionLabel("More")
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp)) {
-            LinkRow(Icons.Filled.Search, "Tag Lab", "Phase 7 test for your wallet SmartTag2", onTagLab)
-            Divider()
-            LinkRow(Icons.Filled.Info, "Diagnostics", "Health checks and the report for Claude", onDiagnostics)
-            Divider()
-            LinkRow(Icons.Filled.Build, "Setup", "Permissions, buds, Android link", onSetup)
+        Group {
+            LinkRow(Sym.Science, Palette.Purple, "Tag Lab", "Test how BudGuard hears your SmartTag2", onTagLab)
+            RowDivider()
+            LinkRow(Sym.BugReport, Palette.Grey, "Diagnostics", "Health checks and the report for Claude", onDiagnostics)
+            RowDivider()
+            LinkRow(Sym.Settings, Palette.Blue, "Setup", "Permissions, buds, Android link", onSetup)
         }
         Text(
             "Map tiles load from OpenFreeMap. Your timeline and locations never leave this phone.",
-            fontSize = 12.sp,
-            color = Palette.Quiet,
-            modifier = Modifier.padding(horizontal = 8.dp),
+            style = Type.Sub.copy(fontSize = 12.sp),
+            modifier = Modifier.padding(horizontal = 10.dp),
         )
-        Spacer(Modifier.height(110.dp))
+        Spacer(Modifier.height(120.dp))
     }
 }
 
 @Composable
-private fun ToggleRow(
-    icon: ImageVector,
-    tint: Color,
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onChange: (Boolean) -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(horizontal = 18.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconTile(icon, tint)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-            Text(subtitle, fontSize = 13.sp, color = Palette.Quiet)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            colors = SwitchDefaults.colors(checkedTrackColor = Palette.Blue, checkedThumbColor = Color.White),
-        )
+private fun ToggleRow(icon: ImageVector, tint: Color, title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    ListRow(title = title, detail = subtitle, leading = { IconTile(icon, tint) }, onClick = { onChange(!checked) }) {
+        Toggle(checked, onChange)
     }
 }
 
 @Composable
-private fun LinkRow(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconTile(icon, Palette.Blue)
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-            Text(subtitle, fontSize = 13.sp, color = Palette.Quiet)
-        }
-        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.Quiet)
-    }
-}
-
-@Composable
-private fun IconTile(icon: ImageVector, tint: Color) {
-    Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(tint), contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-    }
-}
-
-@Composable
-private fun Divider() {
-    Box(Modifier.fillMaxWidth().padding(start = 66.dp, end = 18.dp).height(1.dp).background(Palette.Rule))
+private fun LinkRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
+    ListRow(title = title, detail = subtitle, leading = { IconTile(icon, tint) }, onClick = onClick) { Chevron() }
 }

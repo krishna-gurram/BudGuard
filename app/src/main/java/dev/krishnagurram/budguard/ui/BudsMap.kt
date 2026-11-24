@@ -1,5 +1,15 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Text
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -21,16 +31,45 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import dev.krishnagurram.budguard.R
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
+
+/** False in screenshot tests, where the real map can't load; a drawn stand-in is shown instead. */
+val LocalMapsLive = androidx.compose.runtime.staticCompositionLocalOf { true }
+
+/** A calm street-grid stand-in for the map. */
+@Composable
+fun FakeMap(modifier: Modifier) {
+    androidx.compose.foundation.Canvas(modifier.background(Palette.Map)) {
+        val w = size.width
+        val h = size.height
+        val block = Color(0xFFDCE0E6)
+        val park = Color(0xFFCDE9C9)
+        val road = Color.White
+        val step = 150.dp.toPx()
+        var y = 30.dp.toPx()
+        var row = 0
+        while (y < h) {
+            var x = -20.dp.toPx() + (row % 2) * 40.dp.toPx()
+            var col = 0
+            while (x < w) {
+                val c = if ((row + col) % 5 == 2) park else block
+                drawRoundRect(c, topLeft = androidx.compose.ui.geometry.Offset(x, y), size = androidx.compose.ui.geometry.Size(step - 22.dp.toPx(), step * 0.7f), cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()))
+                x += step
+                col++
+            }
+            drawRect(road, topLeft = androidx.compose.ui.geometry.Offset(0f, y + step * 0.7f + 3.dp.toPx()), size = androidx.compose.ui.geometry.Size(w, 10.dp.toPx()))
+            y += step * 0.7f + 16.dp.toPx()
+            row++
+        }
+    }
+}
 
 // Free vector map built from OpenStreetMap data; no account or API key.
 private const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
@@ -48,12 +87,25 @@ fun BudsMap(
     zoom: Double = 16.5,
     interactive: Boolean = true,
     alert: Boolean = false,
+    icon: androidx.compose.ui.graphics.vector.ImageVector = Sym.Earbuds,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val density = LocalDensity.current
     var metersPerPixel by remember { mutableStateOf<Double?>(null) }
 
+    if (!LocalMapsLive.current) {
+        Box(modifier) {
+            FakeMap(Modifier.fillMaxSize())
+            val accent = if (alert) Palette.Red else Palette.Blue
+            Box(Modifier.align(Alignment.Center).size(110.dp).clip(CircleShape).background(accent.copy(alpha = 0.14f)).border(1.dp, accent.copy(alpha = 0.35f), CircleShape))
+            Box(
+                Modifier.align(Alignment.Center).size(44.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(Color.White).border(3.dp, accent, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp)) }
+        }
+        return
+    }
     val mapView = remember {
         MapLibre.getInstance(context)
         MapView(context).apply { onCreate(null) }
@@ -111,7 +163,7 @@ fun BudsMap(
                 .background(Color.White).border(3.dp, accent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(R.drawable.ic_buds), contentDescription = "Buds", tint = accent, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(22.dp))
         }
     }
 }

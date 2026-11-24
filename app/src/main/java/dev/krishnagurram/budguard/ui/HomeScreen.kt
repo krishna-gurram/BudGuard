@@ -1,5 +1,12 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -87,109 +94,97 @@ fun HomeScreen(
     val leftBehind = fenceArmed && !connected
     val battery = prefs.lastBattery
 
-    Box(modifier) {
+    val caseTag = remember(refresh) { dev.krishnagurram.budguard.data.ItemStore.items(context).firstOrNull { it.icon == "case" } }
+
+    Box(modifier.background(Palette.Bg)) {
         // Map fills the top; the sheet slides over its lower edge.
         if (lastSeen != null) {
             BudsMap(
                 lat = lastSeen.lat!!,
                 lng = lastSeen.lng!!,
                 accuracyM = lastSeen.accuracyM,
-                modifier = Modifier.fillMaxWidth().height(440.dp),
+                modifier = Modifier.fillMaxWidth().height(470.dp),
                 alert = !connected,
             )
         } else {
-            Box(
-                Modifier.fillMaxWidth().height(440.dp).background(Color(0xFFE7EAEE)),
-                contentAlignment = Alignment.Center,
-            ) { Text("The map appears after the first saved spot", color = Palette.Quiet, fontSize = 14.sp) }
+            Box(Modifier.fillMaxWidth().height(470.dp)) {
+                FakeMap(Modifier.fillMaxSize())
+                Text(
+                    "The map appears after the first saved spot",
+                    style = Type.Sub,
+                    modifier = Modifier.align(Alignment.Center).padding(bottom = 60.dp).clip(RoundedCornerShape(50)).background(Color.White).padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
         }
 
-        StatusChip(
-            text = when {
-                latest == null -> "Waiting"
-                connected -> "With you"
-                leftBehind -> "Left behind"
-                else -> "Not connected"
-            },
-            color = when {
-                latest == null -> Palette.Grey
-                connected -> Palette.Green
-                else -> Palette.Red
-            },
-            modifier = Modifier.statusBarsPadding().padding(16.dp),
-        )
+        Row(Modifier.statusBarsPadding().padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            when {
+                latest == null -> MapBadge("Waiting for first event", Sym.Schedule, Palette.Grey)
+                connected -> MapBadge("With you", Sym.Check, Palette.Green)
+                leftBehind -> MapBadge("Left behind", Sym.DirectionsWalk, Palette.Red)
+                else -> MapBadge("Not connected", Sym.LinkOff, Palette.Orange)
+            }
+            Spacer(Modifier.weight(1f))
+            if (lastSeen != null) MapButton(Sym.NearMe, "Track live", tint = Palette.Blue, onClick = onTrack)
+        }
 
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(top = 380.dp)
-                .shadow(16.dp, RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
-                .clip(RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp))
+                .padding(top = 400.dp)
+                .shadow(18.dp, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                 .background(Palette.Bg)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.padding(top = 10.dp).width(40.dp).height(5.dp).clip(RoundedCornerShape(3.dp))
-                    .background(Color(0xFFC9C9CF)).align(Alignment.CenterHorizontally),
-            )
+            SheetHandle()
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Box(
-                    Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Card),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(painterResource(R.drawable.ic_buds), contentDescription = null, tint = Palette.Ink, modifier = Modifier.size(30.dp))
+                Box(Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(Palette.Card), contentAlignment = Alignment.Center) {
+                    Icon(Sym.Earbuds, contentDescription = null, tint = Palette.Ink, modifier = Modifier.size(30.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(status.budsName ?: "No buds picked", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Palette.Ink)
+                    Text(status.budsName ?: "No buds picked", style = Type.Title.copy(fontSize = 22.sp), maxLines = 1)
                     Text(
                         when {
-                            latest == null -> "Connect and disconnect once to start"
-                            connected -> "Connected ${Format.ago(now, latest.time)}"
-                            else -> listOfNotNull(
-                                lastSeen?.place ?: lastSeen?.let { coords(it) },
-                                Format.ago(now, latest.time),
-                            ).joinToString(" · ")
+                            latest == null -> "Put them in the case and take them out once"
+                            connected -> "Connected to this phone · ${Format.ago(now, latest.time)}"
+                            else -> listOfNotNull(lastSeen?.place ?: lastSeen?.let { coords(it) }, Format.ago(now, latest.time)).joinToString(" · ")
                         },
-                        fontSize = 14.sp,
-                        color = Palette.Quiet,
+                        style = Type.Sub.copy(fontSize = 14.sp),
+                        maxLines = 1,
                     )
                 }
             }
 
             if (!status.coreReady) {
                 Card {
-                    Text("Finish setup", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-                    Text("BudGuard can't watch your buds until setup is done.", fontSize = 14.sp, color = Palette.Quiet)
-                    Button(onClick = onSetup, colors = blueButton, shape = RoundedCornerShape(50)) { Text("Open setup") }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconTile(Sym.Warning, Palette.Orange)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Finish setup", style = Type.Row)
+                            Text("BudGuard can't watch your buds until it's done.", style = Type.Sub)
+                        }
+                    }
+                    PillButton("Open setup", Modifier.fillMaxWidth(), onClick = onSetup)
                 }
             }
 
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Palette.Card).padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Palette.Card).padding(horizontal = 18.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                Column(Modifier.weight(1f)) {
-                    Row {
-                        Text("Battery", fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.weight(1f))
-                        Text(if (battery >= 0) "$battery%" else "—", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color(0xFFECECF0))) {
-                        Box(
-                            Modifier.fillMaxWidth((battery.coerceIn(0, 100)) / 100f).height(6.dp).clip(RoundedCornerShape(3.dp))
-                                .background(if (battery in 0..15) Palette.Orange else Palette.Blue),
-                        )
-                    }
-                }
+                BatteryMeter("Buds", battery.takeIf { it >= 0 }, Modifier.weight(1f))
+                BatteryMeter("Case tag", caseTag?.battery, Modifier.weight(1f), healthy = Palette.Green)
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tile("Track", Icons.Filled.Place, primary = true, enabled = lastSeen != null, onClick = onTrack)
-                Tile(if (playing) "Stop sound" else "Play sound", Icons.Filled.PlayArrow, primary = false) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                ActionTile("Track", Sym.Directions, primary = true, enabled = lastSeen != null, onClick = onTrack)
+                ActionTile(if (playing) "Stop" else "Play sound", Sym.VolumeUp, active = playing) {
                     scope.launch {
                         if (playing) {
                             soundNote = BudsSound.stop()
@@ -201,62 +196,42 @@ fun HomeScreen(
                         }
                     }
                 }
-                Tile("Find", Icons.Filled.Search, primary = false, onClick = onFind)
-                Tile("Timeline", Icons.Filled.List, primary = false, onClick = onTimeline)
+                ActionTile("Search", Sym.Radar, onClick = onFind)
+                ActionTile("Timeline", Sym.History, onClick = onTimeline)
             }
-            soundNote?.let { Text(it, fontSize = 13.sp, color = Palette.Quiet, modifier = Modifier.padding(horizontal = 8.dp)) }
+            soundNote?.let { Text(it, style = Type.Sub, modifier = Modifier.padding(horizontal = 8.dp)) }
 
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Palette.Card)
-                    .clickable { openSamsungFind(context) }.padding(horizontal = 16.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconDot(Icons.Filled.Search, Palette.Orange, Palette.OrangeSoft, size = 36)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("Case tag", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-                    Text("Closed case or dead buds? Follow the SmartTag2 in Samsung Find", fontSize = 13.sp, color = Palette.Quiet)
-                }
-                Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = Palette.Quiet)
+            Group {
+                ListRow(
+                    title = "Case tag",
+                    detail = caseTag?.let { t -> if (t.fixTime > 0) "Seen ${Format.ago(now, t.fixTime)}${t.place?.let { " · $it" } ?: ""}" else "Waiting for a first spot" }
+                        ?: "Closed case or dead buds? Follow its SmartTag",
+                    leading = { IconTile(Sym.Sell, Palette.Orange) },
+                    onClick = { openSamsungFind(context) },
+                ) { Chevron() }
             }
 
-            Spacer(Modifier.height(110.dp))
+            Spacer(Modifier.height(120.dp))
         }
     }
 }
 
 @Composable
-private fun StatusChip(text: String, color: Color, modifier: Modifier) {
-    Row(
-        modifier.shadow(6.dp, RoundedCornerShape(50)).clip(RoundedCornerShape(50)).background(color)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Color.White))
-        Spacer(Modifier.width(8.dp))
-        Text(text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.Tile(
-    label: String,
-    icon: ImageVector,
-    primary: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    val bg = if (primary) Palette.Blue else Palette.Card
-    val fg = if (primary) Color.White else Palette.Ink
-    Column(
-        Modifier.weight(1f).height(84.dp).clip(RoundedCornerShape(22.dp)).background(if (enabled) bg else Palette.GreySoft)
-            .clickable(enabled = enabled, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (primary) Color.White else Palette.Blue)
-        Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = fg)
+private fun BatteryMeter(label: String, percent: Int?, modifier: Modifier, healthy: Color = Palette.Blue) {
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = Type.Sub, modifier = Modifier.weight(1f))
+            Text(percent?.let { "$it%" } ?: "–", style = Type.Small.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Palette.GreySoft)) {
+            if (percent != null) {
+                Box(
+                    Modifier.fillMaxWidth(percent.coerceIn(2, 100) / 100f).height(6.dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (percent <= 15) Palette.Orange else healthy),
+                )
+            }
+        }
     }
 }
 

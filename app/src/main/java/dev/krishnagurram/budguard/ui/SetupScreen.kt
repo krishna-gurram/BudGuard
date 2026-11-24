@@ -1,5 +1,15 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Icon
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -61,7 +71,7 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
     }
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxSize().background(Palette.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenTitle("Set up BudGuard", "About 2 minutes, once")
@@ -184,13 +194,7 @@ fun SetupScreen(modifier: Modifier, status: SetupStatus, onRefresh: () -> Unit, 
             action = "Allow",
         ) { activityPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION) }
 
-        Button(
-            onClick = onDone,
-            enabled = status.coreReady,
-            colors = blueButton,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-        ) { Text(if (status.coreReady) "Done" else "Finish steps 1 to 3", fontSize = 16.sp) }
+        PillButton(if (status.coreReady) "Done" else "Finish steps 1 to 3", Modifier.fillMaxWidth().height(56.dp), enabled = status.coreReady, onClick = onDone)
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -207,14 +211,9 @@ private fun Step(
 ) {
     Card {
         StepHeader(n, done, title)
-        Text(body, fontSize = 14.sp, color = Palette.Quiet)
         if (!done) {
-            Button(
-                onClick = onClick,
-                enabled = enabled,
-                colors = blueButton,
-                shape = RoundedCornerShape(50),
-            ) { Text(action) }
+            Text(body, style = Type.Sub.copy(fontSize = 14.sp), modifier = Modifier.padding(start = 46.dp))
+            PillButton(action, Modifier.padding(start = 46.dp).height(44.dp), enabled = enabled, onClick = onClick)
         }
     }
 }
@@ -222,17 +221,17 @@ private fun Step(
 @Composable
 private fun StepHeader(n: Int, done: Boolean, title: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            if (done) "✓" else "$n",
-            color = if (done) Palette.Green else Palette.Blue,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(if (done) Palette.GreenSoft else Palette.BlueSoft)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
+        Box(
+            Modifier.size(32.dp).clip(RoundedCornerShape(50)).background(if (done) Palette.Green else Palette.BlueSoft),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (done) {
+                androidx.compose.material3.Icon(Sym.Check, contentDescription = "Done", tint = Color.White, modifier = Modifier.size(18.dp))
+            } else {
+                Text("$n", style = Type.Small.copy(fontSize = 14.sp, color = Palette.Blue, fontWeight = FontWeight.Bold))
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(title, style = Type.Row.copy(color = if (done) Palette.Quiet else Palette.Ink), modifier = Modifier.weight(1f))
     }
 }

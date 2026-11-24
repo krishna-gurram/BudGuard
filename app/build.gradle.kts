@@ -16,7 +16,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = runNumber
-        versionName = "2.3.$runNumber"
+        versionName = "2.4.$runNumber"
 
         // The Fold 8 is arm64; dropping other CPU types cuts the APK from ~65 MB to ~25 MB.
         ndk { abiFilters += "arm64-v8a" }

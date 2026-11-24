@@ -1,5 +1,14 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,48 +76,28 @@ fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
     val today = events.count { Format.dayLabel(now, it.time) == "Today" }
 
     LazyColumn(
-        modifier = modifier.fillMaxSize().padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier.fillMaxSize().background(Palette.Bg).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { ScreenTitle("Timeline", "$today events today · $places places") }
 
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(Filter.entries.toList()) { f ->
-                    val selected = f == filter
-                    Text(
-                        f.label,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (selected) Color.White else Palette.Ink,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (selected) Palette.Ink else Palette.Card)
-                            .clickable { filter = f }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                    )
-                }
+                items(Filter.entries.toList()) { f -> Chip(f.label, f == filter) { filter = f } }
             }
         }
 
         if (hero != null && (filter == Filter.All || filter == Filter.Away)) {
             item {
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconDot(Icons.Filled.LocationOn, Palette.Red, Palette.RedSoft)
-                        Spacer(Modifier.width(12.dp))
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(4.dp)) {
+                        IconDot(Sym.DirectionsWalk, Palette.Red, Palette.RedSoft, size = 42)
+                        Spacer(Modifier.width(14.dp))
                         Column {
+                            Text("Left behind at ${hero.place ?: coords(hero)}", style = Type.Row)
                             Text(
-                                "Last left at ${hero.place ?: coords(hero)}",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Palette.Ink,
-                            )
-                            Text(
-                                listOfNotNull(Format.clock(hero.time), Format.ago(now, hero.time), Format.accuracy(hero.accuracyM))
-                                    .joinToString(" · "),
-                                fontSize = 13.sp,
-                                color = Palette.Quiet,
+                                listOfNotNull(Format.clock(hero.time), Format.ago(now, hero.time), Format.accuracy(hero.accuracyM)).joinToString(" · "),
+                                style = Type.Sub,
                             )
                         }
                     }
@@ -116,27 +105,17 @@ fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
                         lat = hero.lat!!,
                         lng = hero.lng!!,
                         accuracyM = hero.accuracyM,
-                        modifier = Modifier.padding(horizontal = 12.dp).fillMaxWidth().height(150.dp).clip(RoundedCornerShape(18.dp)),
+                        modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(18.dp)),
                         interactive = false,
                         alert = true,
                     )
-                    Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { navigateTo(context, hero.lat!!, hero.lng!!) },
-                            colors = blueButton,
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.weight(1f),
-                        ) { Text("Directions") }
-                        Button(
-                            onClick = {
-                                LeftBehind.disarm(context)
-                                Alerts.clearLeftBehind(context)
-                                dismissedHero = true
-                            },
-                            colors = softButton,
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.weight(1f),
-                        ) { Text("I have them") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PillButton("Directions", Modifier.weight(1f)) { navigateTo(context, hero.lat!!, hero.lng!!) }
+                        PillButton("I have them", Modifier.weight(1f), style = PillStyle.Neutral) {
+                            LeftBehind.disarm(context)
+                            Alerts.clearLeftBehind(context)
+                            dismissedHero = true
+                        }
                     }
                 }
             }
@@ -145,12 +124,8 @@ fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
         if (events.isEmpty()) {
             item {
                 Card {
-                    Text("Nothing yet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
-                    Text(
-                        "Put the buds in the case and take them out. Each change lands here with where it happened.",
-                        fontSize = 14.sp,
-                        color = Palette.Quiet,
-                    )
+                    Text("Nothing yet", style = Type.Headline)
+                    Text("Put the buds in the case and take them out. Each change lands here with where it happened.", style = Type.Sub.copy(fontSize = 14.sp))
                 }
             }
         }
@@ -158,54 +133,40 @@ fun TimelineScreen(modifier: Modifier, events: List<BudEvent>) {
         groups.forEach { (day, dayEvents) ->
             item { SectionLabel(day) }
             item {
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(Palette.Card).padding(vertical = 4.dp),
-                ) {
+                Group {
                     dayEvents.forEachIndexed { index, e ->
                         EventRow(e, last = index == dayEvents.lastIndex, onClick = { openMap(context, e) })
                     }
                 }
             }
         }
-        item { Spacer(Modifier.height(110.dp)) }
+        item { Spacer(Modifier.height(120.dp)) }
     }
 }
 
 @Composable
 private fun EventRow(e: BudEvent, last: Boolean, onClick: () -> Unit) {
     val (icon, tint, bg) = when (e.type) {
-        EventType.CONNECTED -> Triple(Icons.Filled.CheckCircle, Palette.Green, Palette.GreenSoft)
-        EventType.DISCONNECTED -> Triple(Icons.Filled.LocationOn, Palette.Red, Palette.RedSoft)
-        EventType.APPEARED -> Triple(Icons.Filled.Add, Palette.Blue, Palette.BlueSoft)
-        EventType.DISAPPEARED -> Triple(Icons.Filled.Clear, Palette.Grey, Palette.GreySoft)
-        EventType.BATTERY -> Triple(Icons.Filled.Warning, Palette.Orange, Palette.OrangeSoft)
-        EventType.TAG_LEFT -> Triple(Icons.Filled.LocationOn, Palette.Red, Palette.RedSoft)
-        EventType.TAG_BACK -> Triple(Icons.Filled.CheckCircle, Palette.Green, Palette.GreenSoft)
-        EventType.TAG_BATTERY -> Triple(Icons.Filled.Warning, Palette.Orange, Palette.OrangeSoft)
+        EventType.CONNECTED -> Triple(Sym.Check, Palette.Green, Palette.GreenSoft)
+        EventType.DISCONNECTED -> Triple(Sym.DirectionsWalk, Palette.Red, Palette.RedSoft)
+        EventType.APPEARED -> Triple(Sym.Bluetooth, Palette.Blue, Palette.BlueSoft)
+        EventType.DISAPPEARED -> Triple(Sym.LinkOff, Palette.Grey, Palette.GreySoft)
+        EventType.BATTERY -> Triple(Sym.BatteryAlert, Palette.Orange, Palette.OrangeSoft)
+        EventType.TAG_LEFT -> Triple(Sym.DirectionsWalk, Palette.Red, Palette.RedSoft)
+        EventType.TAG_BACK -> Triple(Sym.Check, Palette.Green, Palette.GreenSoft)
+        EventType.TAG_BATTERY -> Triple(Sym.BatteryAlert, Palette.Orange, Palette.OrangeSoft)
     }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().clickable(enabled = e.hasLocation, onClick = onClick).padding(horizontal = 16.dp),
+    ListRow(
+        title = listOfNotNull(e.item, Format.title(e.type, e.battery)).joinToString(" · "),
+        detail = listOfNotNull(
+            e.place ?: if (e.hasLocation) coords(e) else "Location unavailable",
+            Format.accuracy(e.accuracyM),
+            if (e.moving) "while moving" else null,
+        ).joinToString(" · "),
+        leading = { IconDot(icon, tint, bg, size = 40) },
+        onClick = if (e.hasLocation) onClick else null,
     ) {
-        IconDot(icon, tint, bg)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f).padding(vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(listOfNotNull(e.item, Format.title(e.type, e.battery)).joinToString(": "), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink, modifier = Modifier.weight(1f))
-                Text(Format.clock(e.time), fontSize = 13.sp, color = Palette.Quiet)
-            }
-            Text(
-                listOfNotNull(
-                    e.place ?: if (e.hasLocation) coords(e) else "Location unavailable",
-                    Format.accuracy(e.accuracyM),
-                    if (e.moving) "while moving" else null,
-                ).joinToString(" · "),
-                fontSize = 13.sp,
-                color = Palette.Quiet,
-            )
-        }
+        Text(Format.clock(e.time), style = Type.Sub.copy(fontSize = 12.sp))
     }
-    if (!last) {
-        Row(Modifier.fillMaxWidth().padding(start = 70.dp, end = 16.dp).height(1.dp).background(Palette.Rule)) {}
-    }
+    if (!last) RowDivider(74.dp)
 }

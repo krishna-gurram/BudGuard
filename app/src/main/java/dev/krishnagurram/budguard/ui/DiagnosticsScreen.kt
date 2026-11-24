@@ -1,5 +1,17 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Icon
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -50,17 +62,12 @@ fun DiagnosticsScreen(
     var confirmClear by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxSize().background(Palette.Bg).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ScreenTitle("Diagnostics", "Send me a copy of this after a day of use")
 
-        Button(
-            onClick = { copyReport(context, sections) },
-            colors = blueButton,
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.fillMaxWidth().height(52.dp),
-        ) { Text("Copy report for Claude") }
+        PillButton("Copy report for Claude", Modifier.fillMaxWidth().height(54.dp)) { copyReport(context, sections) }
 
         sections.forEach { (name, lines) ->
             SectionLabel(name)
@@ -70,10 +77,8 @@ fun DiagnosticsScreen(
         }
 
         Spacer(Modifier.height(4.dp))
-        Button(onClick = onSetup, colors = softButton, shape = RoundedCornerShape(50), modifier = Modifier.fillMaxWidth()) {
-            Text("Open setup")
-        }
-        TextButton(onClick = { confirmClear = true }, modifier = Modifier.fillMaxWidth()) { Text("Clear timeline") }
+        PillButton("Open setup", Modifier.fillMaxWidth(), style = PillStyle.Soft, onClick = onSetup)
+        PillButton("Clear timeline", Modifier.fillMaxWidth(), style = PillStyle.Danger) { confirmClear = true }
         Spacer(Modifier.height(110.dp))
     }
 

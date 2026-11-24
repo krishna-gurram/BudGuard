@@ -1,5 +1,15 @@
 package dev.krishnagurram.budguard.ui
 
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
+import androidx.compose.material3.Icon
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ClipData
@@ -144,8 +154,9 @@ fun TagLabScreen(modifier: Modifier, onBack: () -> Unit) {
         modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        ScreenTitle("Tag Lab", "Phase 7: can BudGuard hear your wallet tag?")
-        TextButton(onClick = onBack) { Text("‹ Back to Alerts") }
+        Spacer(Modifier.height(12.dp))
+        MapButton(Sym.ArrowBack, "Back to Alerts", onClick = onBack)
+        ScreenTitle("Tag Lab", "Can BudGuard hear your wallet tag?")
 
         SectionLabel("1 · Your phone's link to tags")
         Card {
