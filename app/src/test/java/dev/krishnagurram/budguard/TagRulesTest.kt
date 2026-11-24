@@ -49,6 +49,29 @@ class TagRulesTest {
     }
 
     @Test
+    fun drivingWithALaggingReportIsNotASeparation() {
+        // You're 1.1 km up the freeway; the wallet's report is 90 s old; you're doing 28 m/s.
+        val lagging = wallet(33.4000, -112.1000, 90_000)
+        val v = TagRules.decide(33.4100, -112.1000, 10.0, lagging, 150, emptyList(), now, refreshed = true, phoneTime = now, phoneSpeedMps = 28.0)
+        assertEquals(TagState.WITH_YOU, v.state)
+        // Same gap while walking (1.5 m/s) really is a separation.
+        val walking = TagRules.decide(33.4100, -112.1000, 10.0, lagging, 150, emptyList(), now, refreshed = true, phoneTime = now, phoneSpeedMps = 1.5)
+        assertEquals(TagState.LEFT_BEHIND, walking.state)
+    }
+
+    @Test
+    fun secondLookDecides() {
+        val t0 = now - 120_000
+        val stayed = wallet(33.40005, -112.1000, 10_000)
+        val moved = wallet(33.4200, -112.1000, 10_000)
+        val noNews = wallet(33.4000, -112.1000, 120_000)
+        assertEquals(TagRules.Confirm.LEFT, TagRules.confirm(33.4000, -112.1000, t0, stayed, checks = 0))
+        assertEquals(TagRules.Confirm.MOVED, TagRules.confirm(33.4000, -112.1000, t0, moved, checks = 0))
+        assertEquals(TagRules.Confirm.WAIT, TagRules.confirm(33.4000, -112.1000, t0, noNews, checks = 0))
+        assertEquals(TagRules.Confirm.LEFT, TagRules.confirm(33.4000, -112.1000, t0, noNews, checks = 1))
+    }
+
+    @Test
     fun alertsOncePerSeparation() {
         assertTrue(TagRules.shouldAlert(TagState.WITH_YOU, TagState.LEFT_BEHIND, alertsOn = true))
         assertFalse(TagRules.shouldAlert(TagState.LEFT_BEHIND, TagState.LEFT_BEHIND, alertsOn = true))

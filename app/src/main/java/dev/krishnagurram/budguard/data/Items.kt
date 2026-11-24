@@ -29,8 +29,16 @@ data class TagItem(
     val stateSince: Long = 0L,
     val safePlace: String? = null,
     val lowBatteryWarned: Boolean = false,
+    // A possible separation waiting for confirmation: where the tag seemed to stay.
+    val pendingLat: Double? = null,
+    val pendingLng: Double? = null,
+    val pendingFixTime: Long = 0L,
+    val pendingChecks: Int = 0,
 ) {
     val hasFix: Boolean get() = lat != null && lng != null
+    val isPending: Boolean get() = pendingLat != null && pendingLng != null
+
+    fun clearPending(): TagItem = copy(pendingLat = null, pendingLng = null, pendingFixTime = 0L, pendingChecks = 0)
 }
 
 data class SafePlace(val name: String, val lat: Double, val lng: Double, val radiusM: Int = 150)
@@ -86,7 +94,9 @@ object ItemStore {
                     .put("accuracyM", t.accuracyM ?: JSONObject.NULL).put("fixTime", t.fixTime)
                     .put("place", t.place ?: JSONObject.NULL).put("battery", t.battery ?: JSONObject.NULL)
                     .put("state", t.state.name).put("stateSince", t.stateSince)
-                    .put("safePlace", t.safePlace ?: JSONObject.NULL).put("lowBatteryWarned", t.lowBatteryWarned),
+                    .put("safePlace", t.safePlace ?: JSONObject.NULL).put("lowBatteryWarned", t.lowBatteryWarned)
+                    .put("pendingLat", t.pendingLat ?: JSONObject.NULL).put("pendingLng", t.pendingLng ?: JSONObject.NULL)
+                    .put("pendingFixTime", t.pendingFixTime).put("pendingChecks", t.pendingChecks),
             )
         }
     }.toString()
@@ -112,6 +122,10 @@ object ItemStore {
                 stateSince = o.optLong("stateSince"),
                 safePlace = if (o.isNull("safePlace")) null else o.optString("safePlace"),
                 lowBatteryWarned = o.optBoolean("lowBatteryWarned"),
+                pendingLat = o.optDoubleOrNull("pendingLat"),
+                pendingLng = o.optDoubleOrNull("pendingLng"),
+                pendingFixTime = o.optLong("pendingFixTime"),
+                pendingChecks = o.optInt("pendingChecks"),
             )
         }
     }
@@ -135,6 +149,8 @@ object ItemStore {
 object TagRules {
 
     const val FRESH_MS = 30L * 60 * 1000
+    const val SAME_SPOT_M = 75.0
+    const val CONFIRM_CHECKS = 2
 
     fun distanceM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val r = 6_371_000.0
@@ -163,15 +179,36 @@ object TagRules {
         places: List<SafePlace>,
         now: Long,
         refreshed: Boolean,
+        phoneTime: Long = now,
+        phoneSpeedMps: Double = 0.0,
     ): Verdict {
         val lat = tag.lat ?: return Verdict(TagState.UNKNOWN, null, null)
         val lng = tag.lng ?: return Verdict(TagState.UNKNOWN, null, null)
         val d = distanceM(phoneLat, phoneLng, lat, lng)
-        val slack = radiusM + phoneAccuracyM + (tag.accuracyM ?: 0.0)
+        // While moving, the tag's last report trails behind you by however far you've
+        // travelled since it was made; allow for that (capped at 5 minutes of travel).
+        val lagSec = (kotlin.math.abs(phoneTime - tag.fixTime) / 1000.0).coerceAtMost(300.0)
+        val slack = radiusM + phoneAccuracyM + (tag.accuracyM ?: 0.0) + phoneSpeedMps * lagSec
         if (d <= slack) return Verdict(TagState.WITH_YOU, d, null)
         safePlaceAt(lat, lng, places)?.let { return Verdict(TagState.LEFT_SAFE, d, it.name) }
         val fresh = now - tag.fixTime <= FRESH_MS
         return if (fresh || refreshed) Verdict(TagState.LEFT_BEHIND, d, null) else Verdict(TagState.UNKNOWN, d, null)
+    }
+
+    enum class Confirm { LEFT, MOVED, WAIT }
+
+    /**
+     * Second look at a possible separation. A newer spot near the first one means the tag
+     * stayed put: left behind. A newer spot elsewhere means it's travelling with you. No newer
+     * spot means your phone hasn't heard it; after [CONFIRM_CHECKS] tries, treat it as left.
+     */
+    fun confirm(pendingLat: Double, pendingLng: Double, pendingFixTime: Long, tag: TagItem, checks: Int): Confirm {
+        val lat = tag.lat
+        val lng = tag.lng
+        if (lat != null && lng != null && tag.fixTime > pendingFixTime) {
+            return if (distanceM(pendingLat, pendingLng, lat, lng) <= SAME_SPOT_M) Confirm.LEFT else Confirm.MOVED
+        }
+        return if (checks + 1 >= CONFIRM_CHECKS) Confirm.LEFT else Confirm.WAIT
     }
 
     /** Alert once per separation: only when the tag newly becomes left behind. */

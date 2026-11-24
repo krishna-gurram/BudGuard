@@ -236,7 +236,7 @@ fun TrackScreen(modifier: Modifier, targetId: String, events: List<BudEvent>, on
                 listOfNotNull(
                     if (target.withYou) "With you" else target.place?.let { "At $it" },
                     "seen ${Format.ago(System.currentTimeMillis(), target.seenAt)}",
-                    target.accuracyM?.let { "±${it.toInt()} m" },
+                    target.accuracyM?.let { Geo.accuracyText(it) },
                 ).joinToString(" · "),
                 fontSize = 14.sp,
                 color = Palette.Quiet,

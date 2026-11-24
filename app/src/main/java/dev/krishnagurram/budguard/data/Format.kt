@@ -29,7 +29,7 @@ object Format {
         }
     }
 
-    fun accuracy(meters: Float?): String? = meters?.let { "±${it.toInt()} m" }
+    fun accuracy(meters: Float?): String? = meters?.let { Geo.accuracyText(it.toDouble()) }
 
     fun title(type: EventType, battery: Int?): String = when (type) {
         EventType.CONNECTED -> "Connected"

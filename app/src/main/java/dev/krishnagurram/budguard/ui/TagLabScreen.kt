@@ -310,7 +310,7 @@ private fun statusLine(st: SamsungFind.Status?, now: Long): String {
     st.fix?.let { f ->
         parts += String.format(Locale.US, "%.5f, %.5f", f.lat, f.lng)
         parts += Format.ago(now, f.time)
-        f.accuracyM?.let { parts += "±${it.toInt()} m" }
+        f.accuracyM?.let { parts += dev.krishnagurram.budguard.data.Geo.accuracyText(it) }
         parts += f.kind
     }
     st.battery?.let { parts += "battery $it%" }

@@ -83,7 +83,7 @@ object Alerts {
     fun tagLeftBehind(context: Context, item: dev.krishnagurram.budguard.data.TagItem, distanceM: Double?) {
         if (!EventRecorder.granted(context, Manifest.permission.POST_NOTIFICATIONS)) return
         val where = item.place ?: "its last spot"
-        val far = distanceM?.let { if (it >= 1000) String.format(Locale.US, "%.1f km", it / 1000) else "${it.toInt()} m" }
+        val far = distanceM?.let { dev.krishnagurram.budguard.data.Geo.distanceText(it) }
         val text = "Left at $where${far?.let { ", $it from you" } ?: ""}. Seen ${Format.ago(System.currentTimeMillis(), item.fixTime)}."
         val code = tagCode(item.id)
         val builder = NotificationCompat.Builder(context, BudGuardApp.CHANNEL_LEFT)

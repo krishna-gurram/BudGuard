@@ -130,7 +130,7 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
                         colors = SliderDefaults.colors(thumbColor = Palette.Blue, activeTrackColor = Palette.Blue),
                         modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
                     )
-                    Text("${radius.toInt()} m", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
+                    Text(dev.krishnagurram.budguard.data.Geo.distanceText(radius.toDouble()), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Palette.Ink)
                 }
             }
             Divider()
@@ -174,7 +174,7 @@ fun AlertsScreen(modifier: Modifier, onDiagnostics: () -> Unit, onSetup: () -> U
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Text(place.name, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Palette.Ink)
-                        Text("${place.radiusM} m around", fontSize = 13.sp, color = Palette.Quiet)
+                        Text("${dev.krishnagurram.budguard.data.Geo.distanceText(place.radiusM.toDouble())} around", fontSize = 13.sp, color = Palette.Quiet)
                     }
                     TextButton(onClick = {
                         places = places - place

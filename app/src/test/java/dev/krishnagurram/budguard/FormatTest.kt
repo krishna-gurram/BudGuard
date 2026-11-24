@@ -29,7 +29,7 @@ class FormatTest {
 
     @Test
     fun accuracyLabel() {
-        assertEquals("±12 m", Format.accuracy(12.7f))
+        assertEquals("±40 ft", Format.accuracy(12.7f))
         assertNull(Format.accuracy(null))
     }
 }

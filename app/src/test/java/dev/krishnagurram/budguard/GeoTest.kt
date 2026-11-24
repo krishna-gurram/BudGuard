@@ -37,9 +37,11 @@ class GeoTest {
 
     @Test
     fun labels() {
-        assertEquals("7 m", Geo.distanceText(7.2))
-        assertEquals("320 m", Geo.distanceText(321.0))
-        assertEquals("1.2 km", Geo.distanceText(1234.0))
+        assertEquals("7 ft", Geo.distanceText(2.0))
+        assertEquals("330 ft", Geo.distanceText(100.0))
+        assertEquals("1.7 mi", Geo.distanceText(2700.0))
+        assertEquals("12 mi", Geo.distanceText(20_000.0))
+        assertEquals("±35 ft", Geo.accuracyText(10.0))
         assertEquals("4 min walk", Geo.walkText(320.0))
         assertEquals("under a minute's walk", Geo.walkText(20.0))
     }

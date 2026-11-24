@@ -379,7 +379,7 @@ fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit, onTrack
                     listOfNotNull(
                         item.place ?: if (item.hasFix) String.format(java.util.Locale.US, "%.5f, %.5f", item.lat, item.lng) else "No spot yet",
                         if (item.fixTime > 0) "seen ${Format.ago(now, item.fixTime)}" else null,
-                        item.accuracyM?.let { "±${it.toInt()} m" },
+                        item.accuracyM?.let { dev.krishnagurram.budguard.data.Geo.accuracyText(it) },
                     ).joinToString(" · "),
                     fontSize = 15.sp,
                     color = Palette.Ink,

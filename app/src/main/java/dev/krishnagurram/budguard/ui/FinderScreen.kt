@@ -214,9 +214,9 @@ private fun RoundAction(label: String, small: Boolean, active: Boolean, onClick:
 }
 
 private fun formatMeters(m: Double): String = when {
-    m < 1 -> "< 1 m"
-    m < 10 -> String.format(Locale.US, "~%.0f m", m)
-    else -> "10 m+"
+    m < 1 -> "< 3 ft"
+    m < 10 -> String.format(Locale.US, "~%.0f ft", m * 3.28084)
+    else -> "30 ft+"
 }
 
 private fun has(context: Context, permission: String) =

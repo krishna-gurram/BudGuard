@@ -52,6 +52,15 @@ object TagWatch {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP, work)
     }
 
+    /** A second look in 2 minutes, to confirm a possible separation before alerting. */
+    fun confirmSoon(context: Context) {
+        val work = OneTimeWorkRequestBuilder<TagCheckWorker>()
+            .setInitialDelay(2, TimeUnit.MINUTES)
+            .setInputData(workDataOf("reason" to "confirming a separation"))
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork("tag_confirm", ExistingWorkPolicy.KEEP, work)
+    }
+
     fun checkSoon(context: Context, reason: String) {
         val work = OneTimeWorkRequestBuilder<TagCheckWorker>()
             .setInputData(workDataOf("reason" to reason))
@@ -78,15 +87,23 @@ object TagWatch {
         ItemStore.merge(context, tags.map { Triple(it.id, it.userId, it.name) })
         if (tags.isEmpty()) return "No tags on your Samsung account"
 
+        // Samsung first, then the phone, so the two snapshots are as close in time as possible.
+        val statuses = tags.associate { it.id to SamsungFind.status(session, it, refresh = true).getOrNull() }
         val phone = EventRecorder.currentLocation(context)
         if (phone != null) armMoveFence(context, phone, prefs.radiusM)
         val places = ItemStore.safePlaces(context)
         val now = System.currentTimeMillis()
+        val speed = when {
+            phone?.hasSpeed() == true -> phone.speed.toDouble()
+            prefs.inVehicle -> 30.0
+            else -> 1.5
+        }
         val notes = mutableListOf<String>()
+        var needConfirm = false
 
         for (device in tags) {
             val item = ItemStore.items(context).firstOrNull { it.id == device.id } ?: continue
-            val status = SamsungFind.status(session, device, refresh = true).getOrNull()
+            val status = statuses[device.id]
             var updated = item.copy(battery = status?.battery ?: item.battery)
             val fix = status?.fix
             if (fix != null && fix.time >= item.fixTime) {
@@ -105,15 +122,51 @@ object TagWatch {
                     places = places,
                     now = now,
                     refreshed = fix != null && now - fix.time < 5 * 60_000,
+                    phoneTime = phone.time,
+                    phoneSpeedMps = speed,
                 )
-                val alert = prefs.tagAlertsOn && TagRules.shouldAlert(item.state, verdict.state, item.alertsOn)
-                if (verdict.state != TagState.UNKNOWN && verdict.state != item.state) {
-                    updated = updated.copy(state = verdict.state, stateSince = now, safePlace = verdict.safePlace)
-                    logState(context, updated.label, verdict.state, updated)
+                var next = verdict.state
+                var why = ""
+                if (next == TagState.LEFT_BEHIND) {
+                    if (!updated.isPending) {
+                        // Looks separated: hold that thought and look again in 2 minutes.
+                        updated = updated.copy(pendingLat = updated.lat, pendingLng = updated.lng, pendingFixTime = updated.fixTime, pendingChecks = 0)
+                        next = item.state
+                        needConfirm = true
+                        why = ", confirming in 2 min"
+                    } else {
+                        when (TagRules.confirm(updated.pendingLat!!, updated.pendingLng!!, updated.pendingFixTime, updated, updated.pendingChecks)) {
+                            TagRules.Confirm.LEFT -> {
+                                updated = updated.clearPending()
+                                why = ", confirmed"
+                            }
+                            TagRules.Confirm.MOVED -> {
+                                updated = updated.clearPending()
+                                next = TagState.WITH_YOU
+                                why = ", it moved with you"
+                            }
+                            TagRules.Confirm.WAIT -> {
+                                updated = updated.copy(pendingChecks = updated.pendingChecks + 1)
+                                next = item.state
+                                needConfirm = true
+                                why = ", no new report yet"
+                            }
+                        }
+                    }
+                } else if (next != TagState.UNKNOWN) {
+                    updated = updated.clearPending()
+                } else if (updated.isPending) {
+                    needConfirm = true
+                }
+
+                val alert = prefs.tagAlertsOn && TagRules.shouldAlert(item.state, next, item.alertsOn)
+                if (next != TagState.UNKNOWN && next != item.state) {
+                    updated = updated.copy(state = next, stateSince = now, safePlace = if (next == TagState.LEFT_SAFE) verdict.safePlace else null)
+                    logState(context, updated.label, next, updated)
                 }
                 if (alert) Alerts.tagLeftBehind(context, updated, verdict.distanceM)
-                if (verdict.state == TagState.WITH_YOU) Alerts.clearTag(context, updated.id)
-                notes += "${updated.label}: ${verdict.state.name.lowercase()}${verdict.distanceM?.let { " (${it.toInt()} m)" } ?: ""}"
+                if (next == TagState.WITH_YOU) Alerts.clearTag(context, updated.id)
+                notes += "${updated.label}: ${next.name.lowercase()}${verdict.distanceM?.let { " (${dev.krishnagurram.budguard.data.Geo.distanceText(it)})" } ?: ""}$why"
             } else {
                 notes += "${updated.label}: no phone location"
             }
@@ -128,6 +181,7 @@ object TagWatch {
             val saved = updated
             ItemStore.update(context, item.id) { saved }
         }
+        if (needConfirm) confirmSoon(context)
         return notes.joinToString("; ")
     }
 
@@ -184,7 +238,7 @@ object TagWatch {
     /** Marks a tag as with you after you tap "I have it". */
     fun haveIt(context: Context, id: String) {
         val now = System.currentTimeMillis()
-        ItemStore.update(context, id) { it.copy(state = TagState.WITH_YOU, stateSince = now) }
+        ItemStore.update(context, id) { it.copy(state = TagState.WITH_YOU, stateSince = now).clearPending() }
         Alerts.clearTag(context, id)
         LastSeenWidget.refresh(context)
     }
@@ -203,7 +257,7 @@ class MoveFenceReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val event = GeofencingEvent.fromIntent(intent) ?: return
         if (event.hasError() || event.geofenceTransition != Geofence.GEOFENCE_TRANSITION_EXIT) return
-        TagWatch.checkSoon(context, "you moved ${Prefs(context).radiusM} m")
+        TagWatch.checkSoon(context, "you moved ${dev.krishnagurram.budguard.data.Geo.distanceText(Prefs(context).radiusM.toDouble())}")
     }
 }
 

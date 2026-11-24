@@ -34,10 +34,24 @@ object Geo {
         return d
     }
 
-    fun distanceText(m: Double): String = when {
-        m < 10 -> "${m.roundToInt()} m"
-        m < 1000 -> "${(m / 5).roundToInt() * 5} m"
-        else -> String.format(java.util.Locale.US, "%.1f km", m / 1000)
+    const val FEET_PER_M = 3.28084
+    const val M_PER_MILE = 1609.344
+
+    /** US units: feet up to 0.1 mile, then miles. */
+    fun distanceText(m: Double): String {
+        val ft = m * FEET_PER_M
+        return when {
+            ft < 30 -> "${ft.roundToInt()} ft"
+            m < M_PER_MILE / 10 -> "${(ft / 10).roundToInt() * 10} ft"
+            m < M_PER_MILE * 10 -> String.format(java.util.Locale.US, "%.1f mi", m / M_PER_MILE)
+            else -> "${(m / M_PER_MILE).roundToInt()} mi"
+        }
+    }
+
+    /** GPS error radius, e.g. "±30 ft". */
+    fun accuracyText(m: Double): String {
+        val ft = m * FEET_PER_M
+        return if (ft < 10) "±${ft.roundToInt()} ft" else "±${(ft / 5).roundToInt() * 5} ft"
     }
 
     fun walkText(m: Double): String {
