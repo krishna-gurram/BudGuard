@@ -75,7 +75,7 @@ private object Dark {
 }
 
 @Composable
-fun FinderScreen(modifier: Modifier) {
+fun FinderScreen(modifier: Modifier, onCaseTag: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { Prefs(context) }
@@ -181,7 +181,7 @@ fun FinderScreen(modifier: Modifier) {
                     }
                 }
             }
-            RoundAction("Case tag", Sym.Sell, big = false, active = false) { openSamsungFind(context) }
+            RoundAction("Case tag", Sym.Sell, big = false, active = false, onClick = onCaseTag)
         }
 
         Spacer(Modifier.height(22.dp))

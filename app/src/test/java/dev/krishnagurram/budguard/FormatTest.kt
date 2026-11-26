@@ -32,4 +32,13 @@ class FormatTest {
         assertEquals("±40 ft", Format.accuracy(12.7f))
         assertNull(Format.accuracy(null))
     }
+
+    @Test
+    fun tagBatteryWords() {
+        assertEquals("Full", Format.tagBattery(100))
+        assertEquals("Medium", Format.tagBattery(50))
+        assertEquals("Low", Format.tagBattery(15))
+        assertEquals("Very low", Format.tagBattery(5))
+        assertEquals("–", Format.tagBattery(null))
+    }
 }

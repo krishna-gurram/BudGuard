@@ -74,6 +74,12 @@ object ItemStore {
     fun saveSafePlaces(context: Context, places: List<SafePlace>) =
         sp(context).edit().putString("places", encodePlaces(places)).apply()
 
+    /** The SmartTag on the buds case: the one with the case icon, else one named like it. */
+    fun caseTag(context: Context): TagItem? {
+        val all = items(context)
+        return all.firstOrNull { it.icon == "case" } ?: all.firstOrNull { guessIcon(it.label) == "case" || guessIcon(it.samsungName) == "case" }
+    }
+
     fun guessIcon(name: String): String = when {
         name.contains("wallet", true) -> "wallet"
         name.contains("key", true) -> "keys"

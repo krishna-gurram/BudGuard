@@ -15,5 +15,6 @@ fun navigateTo(context: Context, lat: Double, lng: Double) {
 fun openSamsungFind(context: Context) {
     val packages = listOf("com.samsung.android.oneconnect", "com.samsung.android.app.smartthingsfind")
     val intent = packages.firstNotNullOfOrNull { context.packageManager.getLaunchIntentForPackage(it) }
-    if (intent != null) runCatching { context.startActivity(intent) }
+    val fallback = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://smartthingsfind.samsung.com/"))
+    runCatching { context.startActivity((intent ?: fallback).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }

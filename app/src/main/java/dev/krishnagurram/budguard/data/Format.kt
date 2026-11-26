@@ -8,6 +8,16 @@ import java.util.Locale
 /** Pure formatting helpers, kept free of Android types so they are unit-tested. */
 object Format {
 
+    /** Samsung only reports tag battery as Full / Medium / Low / Very low. */
+    fun tagBattery(level: Int?): String = when {
+        level == null -> "–"
+        level >= 100 -> "Full"
+        level >= 50 -> "Medium"
+        level >= 15 -> "Low"
+        else -> "Very low"
+    }
+
+
     fun ago(now: Long, then: Long): String {
         val minutes = (now - then).coerceAtLeast(0) / 60_000
         return when {

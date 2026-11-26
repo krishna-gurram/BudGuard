@@ -73,6 +73,7 @@ fun HomeScreen(
     onTimeline: () -> Unit,
     onFind: () -> Unit,
     onTrack: () -> Unit = {},
+    onCaseTag: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -94,7 +95,7 @@ fun HomeScreen(
     val leftBehind = fenceArmed && !connected
     val battery = prefs.lastBattery
 
-    val caseTag = remember(refresh) { dev.krishnagurram.budguard.data.ItemStore.items(context).firstOrNull { it.icon == "case" } }
+    val caseTag = remember(refresh) { dev.krishnagurram.budguard.data.ItemStore.caseTag(context) }
 
     Box(modifier.background(Palette.Bg)) {
         // Map fills the top; the sheet slides over its lower edge.
@@ -179,7 +180,7 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 BatteryMeter("Buds", battery.takeIf { it >= 0 }, Modifier.weight(1f))
-                BatteryMeter("Case tag", caseTag?.battery, Modifier.weight(1f), healthy = Palette.Green)
+                BatteryMeter("Case tag", caseTag?.battery, Modifier.weight(1f), healthy = Palette.Green, words = true)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -205,9 +206,9 @@ fun HomeScreen(
                 ListRow(
                     title = "Case tag",
                     detail = caseTag?.let { t -> if (t.fixTime > 0) "Seen ${Format.ago(now, t.fixTime)}${t.place?.let { " · $it" } ?: ""}" else "Waiting for a first spot" }
-                        ?: "Closed case or dead buds? Follow its SmartTag",
+                        ?: "Add the SmartTag on your case in Items",
                     leading = { IconTile(Sym.Sell, Palette.Orange) },
-                    onClick = { openSamsungFind(context) },
+                    onClick = onCaseTag,
                 ) { Chevron() }
             }
 
@@ -217,11 +218,11 @@ fun HomeScreen(
 }
 
 @Composable
-private fun BatteryMeter(label: String, percent: Int?, modifier: Modifier, healthy: Color = Palette.Blue) {
+private fun BatteryMeter(label: String, percent: Int?, modifier: Modifier, healthy: Color = Palette.Blue, words: Boolean = false) {
     Column(modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(label, style = Type.Sub, modifier = Modifier.weight(1f))
-            Text(percent?.let { "$it%" } ?: "–", style = Type.Small.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
+            Text(if (words) Format.tagBattery(percent) else percent?.let { "$it%" } ?: "–", style = Type.Small.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold))
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)).background(Palette.GreySoft)) {

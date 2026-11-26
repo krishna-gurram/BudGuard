@@ -17,6 +17,12 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Lets BudGuard open SmartThings / Samsung Find (Android hides other apps otherwise). -->
+    <queries>
+        <package android:name="com.samsung.android.oneconnect" />
+        <package android:name="com.samsung.android.app.smartthingsfind" />
+    </queries>
+
     <application
         android:name=".BudGuardApp"
         android:allowBackup="false"

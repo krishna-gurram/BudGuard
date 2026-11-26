@@ -309,7 +309,7 @@ fun ItemsScreen(modifier: Modifier, events: List<BudEvent>, onBuds: () -> Unit, 
                         title = t.label,
                         line = stateText(t, now),
                         detail = listOfNotNull(
-                            t.battery?.let { "Tag battery $it%" },
+                            t.battery?.let { "Tag battery ${Format.tagBattery(it)}" },
                             if (!t.alertsOn) "Alerts off" else null,
                         ).joinToString(" · ").ifBlank { null },
                         onClick = { onOpen(t.id) },
@@ -422,7 +422,7 @@ fun ItemDetailScreen(modifier: Modifier, id: String, onBack: () -> Unit, onTrack
                 )
                 RowDivider(74.dp)
                 ListRow(
-                    title = "Tag battery ${item.battery?.let { "$it%" } ?: "unknown"}",
+                    title = "Tag battery ${if (item.battery == null) "unknown" else Format.tagBattery(item.battery).lowercase()}",
                     detail = "Samsung name: ${item.samsungName}",
                     leading = { IconDot(Sym.BatteryFull, if ((item.battery ?: 100) <= 15) Palette.Orange else Palette.Green, if ((item.battery ?: 100) <= 15) Palette.OrangeSoft else Palette.GreenSoft, size = 40) },
                 )

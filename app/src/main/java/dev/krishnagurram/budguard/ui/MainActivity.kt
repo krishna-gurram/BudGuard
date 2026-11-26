@@ -119,6 +119,21 @@ private fun AppRoot() {
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
 
+    // Case tag buttons: follow the SmartTag on the case live; no tag yet, go add it in Items.
+    fun openCaseTag(from: Screen) {
+        val tag = dev.krishnagurram.budguard.data.ItemStore.caseTag(context)
+        if (tag != null && tag.hasFix) {
+            trackId = tag.id
+            trackBack = from
+            screen = Screen.Track
+        } else if (tag != null) {
+            openItem = tag.id
+            screen = Screen.ItemDetail
+        } else {
+            screen = Screen.Items
+        }
+    }
+
     val dark = screen == Screen.Find
     Box(Modifier.fillMaxSize().background(if (dark) Color(0xFF0A0C10) else Palette.Bg)) {
         val modifier = Modifier.fillMaxSize()
@@ -136,6 +151,7 @@ private fun AppRoot() {
                     trackBack = Screen.Buds
                     screen = Screen.Track
                 },
+                onCaseTag = { openCaseTag(Screen.Buds) },
             )
             Screen.Track -> TrackScreen(
                 modifier,
@@ -159,7 +175,7 @@ private fun AppRoot() {
                 screen = Screen.Track
             })
             Screen.Timeline -> TimelineScreen(modifier.statusBarsPadding(), events)
-            Screen.Find -> FinderScreen(modifier.statusBarsPadding())
+            Screen.Find -> FinderScreen(modifier.statusBarsPadding(), onCaseTag = { openCaseTag(Screen.Find) })
             Screen.Alerts -> AlertsScreen(
                 modifier.statusBarsPadding(),
                 onDiagnostics = { screen = Screen.Diagnostics },
